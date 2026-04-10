@@ -7,7 +7,7 @@ const menu = {
   kedd: "K - Gulyásleves, palacsinta",
   szerda: "SZE - Tészta carbonara",
   csutortok: "CS - Pörkölt nokedlivel",
-  pentek: "P - Hal, rizs",
+  pentek: "P - Hal TEST, rizs",
   szombat: "SZO - Pizza",
   vasarnap: "V - Húsleves, sült hús"
 };
