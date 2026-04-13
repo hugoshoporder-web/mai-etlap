@@ -8,29 +8,46 @@ const port = process.env.PORT || 3000;
 const SHEET_ID = "1yPZUVn4PvNkGlyXdUedMkCWBa0J1f4Eutl9JwMLHBWE";
 const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
 
+// Biztonságos parser, nem dönti le a szervert
+function parseGoogleJSON(raw) {
+  let cleaned = raw;
+
+  // Biztonság: védjük le minden esetre
+  cleaned = cleaned.replace("/*O_o*/", "");
+  cleaned = cleaned.replace(")]}'", "");
+  cleaned = cleaned.replace("google.visualization.Query.setResponse(", "");
+
+  if (cleaned.endsWith(");")) {
+    cleaned = cleaned.slice(0, -2);
+  }
+
+  return JSON.parse(cleaned);
+}
+
 async function getMenu() {
-  // Friss adatok minden lekérésnél
-  const url = `${SHEET_URL}&nocache=${Date.now()}`;
-  const response = await fetch(url);
-  const text = await response.text();
+  try {
+    const url = `${SHEET_URL}&nocache=${Date.now()}`;
+    const response = await fetch(url);
+    const text = await response.text();
 
-  // Google Visualization JSON fix
-  const clean = text
-    .replace("/*O_o*/", "")
-    .replace("google.visualization.Query.setResponse(", "")
-    .slice(0, -2);
+    const json = parseGoogleJSON(text);
 
-  const json = JSON.parse(clean);
-  const rows = json.table.rows;
+    const rows = json.table.rows;
+    const menu = {};
 
-  const menu = {};
-  rows.forEach(row => {
-    const nap = row.c[0].v;
-    const fogas = row.c[1].v;
-    menu[nap] = fogas;
-  });
+    rows.forEach(row => {
+      if (row.c && row.c[0] && row.c[1]) {
+        const nap = row.c[0].v;
+        const etel = row.c[1].v;
+        menu[nap] = etel;
+      }
+    });
 
-  return menu;
+    return menu;
+  } catch (err) {
+    console.error("Google Sheet parsing error:", err);
+    return {}; // FONTOS: ne legyen crash!
+  }
 }
 
 app.get("/", async (req, res) => {
