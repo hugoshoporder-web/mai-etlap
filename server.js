@@ -4,22 +4,27 @@ const fetch = require("node-fetch");
 const app = express();
 const port = process.env.PORT || 3000;
 
-// IDE tedd be a Google Sheet ID-t
-const SHEET_ID = "IDE_AZONOSITO";
+// Google Sheet ID
+const SHEET_ID = "1yPZUVn4PvNkGlyXdUedMkCWBa0J1f4Eutl9JwMLHBWE";
 const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
 
 async function getMenu() {
-  const response = await fetch(SHEET_URL);
+  // Friss adatok minden lekérésnél
+  const url = `${SHEET_URL}&nocache=${Date.now()}`;
+  const response = await fetch(url);
   const text = await response.text();
 
-  // Google JSON feed fixálása
-  const json = JSON.parse(text.substring(47).slice(0, -2));
+  // Google Visualization JSON fix
+  const clean = text
+    .replace("/*O_o*/", "")
+    .replace("google.visualization.Query.setResponse(", "")
+    .slice(0, -2);
 
+  const json = JSON.parse(clean);
   const rows = json.table.rows;
 
   const menu = {};
-
-  rows.forEach((row) => {
+  rows.forEach(row => {
     const nap = row.c[0].v;
     const fogas = row.c[1].v;
     menu[nap] = fogas;
