@@ -28,8 +28,12 @@ app.get("/", async (req, res) => {
   });
 
   const napok = ["vasarnap","hetfo","kedd","szerda","csutortok","pentek","szombat"];
-  const today = napok[new Date().getDay()];
+  const nowHu = new Date(
+  new Date().toLocaleString("en-US", { timeZone: "Europe/Budapest" })
+);
+const today = napok[nowHu.getDay()];
 
+  
   const data = {};
 
   rows.forEach(r => {
