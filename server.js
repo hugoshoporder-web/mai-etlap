@@ -34,7 +34,7 @@ async function getData() {
     });
 
     const data = {};
-console.log("ELSŐ SOR:", rows[0])
+
     rows.forEach(r => {
       const etterem = r.etterem?.trim();
       const nap = normalizeNap(r.nap);
