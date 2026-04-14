@@ -33,6 +33,8 @@ async function getData() {
       trim: true
     });
 
+console.log("SOROK SZÁMA:", rows.length);
+
     const data = {};
 
     rows.forEach(r => {
