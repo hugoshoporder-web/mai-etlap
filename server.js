@@ -7,7 +7,7 @@ const port = process.env.PORT || 3000;
 
 // Google Sheet CSV (1 sor = 1 étel)
 const CSV_URL =
-  "https://docs.google.com/spreadsheets/d/1yPZUVn4PvNkGlyXdUedMkCWBa0J1f4Eutl9JwMLHBWE/export?format=csv";
+"https://docs.google.com/spreadsheets/d/1yPZUVn4PvNkGlyXdUedMkCWBa0J1f4Eutl9JwMLHBWE/export?format=csv&sheet=Munkalap1";
 
 // nap normalizálás (ékezet, nagybetű, elütés nem számít)
 function normalizeNap(s) {
