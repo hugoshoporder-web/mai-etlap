@@ -5,10 +5,11 @@ const { parse } = require("csv-parse/sync");
 const app = express();
 const port = process.env.PORT || 3000;
 
-// pontosan a sheet neve!
+// ÁLLÍTSD BE pontosan a sheet nevét
 const CSV_URL =
   "https://docs.google.com/spreadsheets/d/1yPZUVn4PvNkGlyXdUedMkCWBa0J1f4Eutl9JwMLHBWE/export?format=csv&sheet=ADATOK";
 
+// nap normalizálás (ékezet, nagybetű nem számít)
 function normalizeNap(s) {
   return (s || "")
     .toLowerCase()
@@ -17,12 +18,32 @@ function normalizeNap(s) {
     .trim();
 }
 
-function getTodayHu() {
+// első betű nagybetű
+function capitalize(str) {
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+// magyar dátum + nap
+function getTodayHuInfo() {
   const now = new Date(
     new Date().toLocaleString("en-US", { timeZone: "Europe/Budapest" })
   );
-  const napok = ["vasarnap","hetfo","kedd","szerda","csutortok","pentek","szombat"];
-  return napok[now.getDay()];
+
+  const napok = [
+    "vasárnap",
+    "hétfő",
+    "kedd",
+    "szerda",
+    "csütörtök",
+    "péntek",
+    "szombat"
+  ];
+
+  const datum = now.toISOString().split("T")[0]; // YYYY-MM-DD
+  const napNev = napok[now.getDay()];
+  const napKod = normalizeNap(napNev); // hetfo, kedd, stb.
+
+  return { datum, napNev, napKod };
 }
 
 app.get("/", async (req, res) => {
@@ -35,7 +56,7 @@ app.get("/", async (req, res) => {
     trim: true
   });
 
-  const today = getTodayHu();
+  const { datum, napNev, napKod } = getTodayHuInfo();
 
   // struktúra: etterem -> tipus -> [ételek]
   const data = {};
@@ -46,7 +67,7 @@ app.get("/", async (req, res) => {
     const tipus = r.tipus || "Egyéb";
     const etel = r.etel;
 
-    if (nap !== today || !etel) return;
+    if (nap !== napKod || !etel) return;
 
     if (!data[etterem]) data[etterem] = {};
     if (!data[etterem][tipus]) data[etterem][tipus] = [];
@@ -63,7 +84,8 @@ app.get("/", async (req, res) => {
   res.write("<title>Mai menü</title>");
   res.write("</head>");
   res.write("<body>");
-  res.write("<h1>Mai menü</h1>");
+
+  res.write("<h1>Mai menü (" + datum + " – " + capitalize(napNev) + ")</h1>");
 
   let vanAdat = false;
 
@@ -92,5 +114,5 @@ app.get("/", async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log("Csoportosított menü szerver fut:", port);
+  console.log("Menü szerver fut:", port);
 });
