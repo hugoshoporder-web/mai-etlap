@@ -5,7 +5,7 @@ const { parse } = require("csv-parse/sync");
 const app = express();
 const port = process.env.PORT || 3000;
 
-// ÁLLÍTSD BE a sheet nevét pontosan!
+// pontosan a sheet neve!
 const CSV_URL =
   "https://docs.google.com/spreadsheets/d/1yPZUVn4PvNkGlyXdUedMkCWBa0J1f4Eutl9JwMLHBWE/export?format=csv&sheet=ADATOK";
 
@@ -15,6 +15,14 @@ function normalizeNap(s) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .trim();
+}
+
+function getTodayHu() {
+  const now = new Date(
+    new Date().toLocaleString("en-US", { timeZone: "Europe/Budapest" })
+  );
+  const napok = ["vasarnap","hetfo","kedd","szerda","csutortok","pentek","szombat"];
+  return napok[now.getDay()];
 }
 
 app.get("/", async (req, res) => {
@@ -27,26 +35,26 @@ app.get("/", async (req, res) => {
     trim: true
   });
 
-  const napok = ["vasarnap","hetfo","kedd","szerda","csutortok","pentek","szombat"];
-  const nowHu = new Date(
-  new Date().toLocaleString("en-US", { timeZone: "Europe/Budapest" })
-);
-const today = napok[nowHu.getDay()];
+  const today = getTodayHu();
 
-  
+  // struktúra: etterem -> tipus -> [ételek]
   const data = {};
 
   rows.forEach(r => {
     const etterem = r.etterem || "Alap étterem";
     const nap = normalizeNap(r.nap);
+    const tipus = r.tipus || "Egyéb";
     const etel = r.etel;
 
     if (nap !== today || !etel) return;
 
-    if (!data[etterem]) data[etterem] = [];
-    data[etterem].push(etel);
+    if (!data[etterem]) data[etterem] = {};
+    if (!data[etterem][tipus]) data[etterem][tipus] = [];
+
+    data[etterem][tipus].push(etel);
   });
 
+  // ---- HTML KIÍRÁS ----
   res.write("<!DOCTYPE html>");
   res.write("<html lang='hu'>");
   res.write("<head>");
@@ -62,11 +70,16 @@ const today = napok[nowHu.getDay()];
   for (const etterem in data) {
     vanAdat = true;
     res.write("<h2>" + etterem + "</h2>");
-    res.write("<ul>");
-    data[etterem].forEach(e => {
-      res.write("<li>" + e + "</li>");
-    });
-    res.write("</ul>");
+
+    const csoportok = data[etterem];
+    for (const tipus in csoportok) {
+      res.write("<h3>" + tipus + "</h3>");
+      res.write("<ul>");
+      csoportok[tipus].forEach(e => {
+        res.write("<li>" + e + "</li>");
+      });
+      res.write("</ul>");
+    }
   }
 
   if (!vanAdat) {
@@ -79,5 +92,5 @@ const today = napok[nowHu.getDay()];
 });
 
 app.listen(port, () => {
-  console.log("HTML szerver fut:", port);
+  console.log("Csoportosított menü szerver fut:", port);
 });
