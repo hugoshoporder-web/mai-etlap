@@ -5,11 +5,11 @@ const { parse } = require("csv-parse/sync");
 const app = express();
 const port = process.env.PORT || 3000;
 
-// ⬇️ PONTOSAN add meg a sheet nevét
+// ÁLLÍTSD BE PONTOSAN A SHEET NEVÉT
 const CSV_URL =
   "https://docs.google.com/spreadsheets/d/1yPZUVn4PvNkGlyXdUedMkCWBa0J1f4Eutl9JwMLHBWE/export?format=csv&sheet=ADATOK";
 
-/* ---------------- SEGÉDFÜGGVÉNYEK ---------------- */
+/* -------- SEGÉD FÜGGVÉNYEK -------- */
 
 function normalizeNap(s) {
   return (s || "")
@@ -23,19 +23,29 @@ function capitalize(s) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-function getHuDate(offsetDays = 0) {
+function getHuDate(offset = 0) {
   const d = new Date(
     new Date().toLocaleString("en-US", { timeZone: "Europe/Budapest" })
   );
-  d.setDate(d.getDate() + offsetDays);
+  d.setDate(d.getDate() + offset);
 
   const napNevek = [
-    "vasárnap", "hétfő", "kedd", "szerda",
-    "csütörtök", "péntek", "szombat"
+    "vasárnap",
+    "hétfő",
+    "kedd",
+    "szerda",
+    "csütörtök",
+    "péntek",
+    "szombat"
   ];
   const napKodok = [
-    "vasarnap", "hetfo", "kedd", "szerda",
-    "csutortok", "pentek", "szombat"
+    "vasarnap",
+    "hetfo",
+    "kedd",
+    "szerda",
+    "csutortok",
+    "pentek",
+    "szombat"
   ];
 
   return {
@@ -51,8 +61,8 @@ function isWorkday(index) {
 }
 
 function renderDay(res, dayData) {
-  if (!dayData) {
-    res.write("<p>Nincs adat</p>");
+  if (!dayData || Object.keys(dayData).length === 0) {
+    res.write("<p><em>Nincs adat.</em></p>");
     return;
   }
 
@@ -69,7 +79,7 @@ function renderDay(res, dayData) {
   }
 }
 
-/* ---------------- FŐ ROUTE ---------------- */
+/* -------- FŐ ROUTE -------- */
 
 app.get("/", async (req, res) => {
   const response = await fetch(CSV_URL);
@@ -88,11 +98,13 @@ app.get("/", async (req, res) => {
     const etterem = r.etterem || "Alap étterem";
     const tipus = r.tipus || "Egyéb";
     const etel = r.etel;
+
     if (!etel) return;
 
     if (!data[nap]) data[nap] = {};
     if (!data[nap][etterem]) data[nap][etterem] = {};
     if (!data[nap][etterem][tipus]) data[nap][etterem][tipus] = [];
+
     data[nap][etterem][tipus].push(etel);
   });
 
@@ -109,39 +121,43 @@ app.get("/", async (req, res) => {
   res.write("<title>Mai menü</title>");
   res.write("</head><body>");
 
-  /* --------- MAI MENÜ --------- */
+  /* ---- MAI MENÜ ---- */
   res.write("<h1>Mai menü (" + today.datum + " – " + capitalize(today.napNev) + ")</h1>");
   renderDay(res, data[today.napKod]);
 
-  /* --------- KÖVETKEZŐ MUNKANAP --------- */
+  /* ---- KÖVETKEZŐ MUNKANAP ---- */
   res.write("<hr>");
-  res.write("<h2>Következő munkanap (" + nextDay.datum + " – " + capitalize(nextDay.napNev) + ")</h2>");
+  res.write(
+    "<h2>Következő munkanap (" +
+    nextDay.datum + " – " + capitalize(nextDay.napNev) +
+    ")</h2>"
+  );
   renderDay(res, data[nextDay.napKod]);
 
-  /* --------- TOVÁBBI NAPOK --------- */
+  /* ---- TOVÁBBI NAPOK ---- */
   res.write("<hr>");
   res.write("<details><summary><strong>A hét további napjai</strong></summary>");
 
-  const shown = new Set([today.datum, nextDay.datum]);
+  const shownDates = new Set([today.datum, nextDay.datum]);
   let futureOffset = offset + 1;
-  let shownCount = 0;
+  let checkedDays = 0;
 
-  while (shownCount < 5) {
+  // maximum 14 napot nézünk előre
+  while (checkedDays < 14) {
     const d = getHuDate(futureOffset++);
-    if (!isWorkday(d.napIndex)) continue;
-    if (shown.has(d.datum)) continue;
+    checkedDays++;
 
-    if (data[d.napKod]) {
-      res.write("<h3>" + d.datum + " – " + capitalize(d.napNev) + "</h3>");
-      renderDay(res, data[d.napKod]);
-      shown.add(d.datum);
-      shownCount++;
-    }
+    if (!isWorkday(d.napIndex)) continue;
+    if (shownDates.has(d.datum)) continue;
+
+    res.write("<h3>" + d.datum + " – " + capitalize(d.napNev) + "</h3>");
+    renderDay(res, data[d.napKod]);
+    shownDates.add(d.datum);
   }
 
   res.write("</details>");
 
-  /* --------- QR KÓD + MEGJEGYZÉS (VÉGÉN, VÁLTOZATLAN) --------- */
+  /* ---- QR + MEGJEGYZÉS ---- */
   const baseUrl = req.protocol + "://" + req.get("host");
   const qrUrl =
     "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" +
@@ -150,7 +166,9 @@ app.get("/", async (req, res) => {
   res.write("<hr>");
   res.write("<h3>Honlap elérhetősége</h3>");
   res.write("<img src='" + qrUrl + "' alt='QR kód'>");
-  res.write("<p style='font-size:0.9em;color:#555;'>A szerver felébredése néhány másodpercet igénybe vehet.</p>");
+  res.write(
+    "<p style='font-size:0.9em;color:#555;'>A szerver felébredése néhány másodpercet igénybe vehet.</p>"
+  );
   res.write("<p>" + baseUrl + "</p>");
 
   res.write("</body></html>");
