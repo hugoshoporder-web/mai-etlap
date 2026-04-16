@@ -23,19 +23,29 @@ function capitalize(s) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+const napNevek = [
+  "vasárnap",
+  "hétfő",
+  "kedd",
+  "szerda",
+  "csütörtök",
+  "péntek",
+  "szombat"
+];
+const napKodok = [
+  "vasarnap",
+  "hetfo",
+  "kedd",
+  "szerda",
+  "csutortok",
+  "pentek",
+  "szombat"
+];
+
 function getTodayHu() {
   const now = new Date(
     new Date().toLocaleString("en-US", { timeZone: "Europe/Budapest" })
   );
-
-  const napNevek = [
-    "vasárnap","hétfő","kedd","szerda",
-    "csütörtök","péntek","szombat"
-  ];
-  const napKodok = [
-    "vasarnap","hetfo","kedd","szerda",
-    "csutortok","pentek","szombat"
-  ];
 
   return {
     dateObj: now,
@@ -48,12 +58,20 @@ function getTodayHu() {
 
 function getNextWorkday(fromDate) {
   let d = new Date(fromDate);
-
   while (true) {
     d.setDate(d.getDate() + 1);
     const idx = d.getDay();
     if (idx >= 1 && idx <= 5) return new Date(d);
   }
+}
+
+// ✅ KULCS: következő hét HÉTFŐ dátuma
+function getNextWeekMonday(todayDate) {
+  const d = new Date(todayDate);
+  const day = d.getDay(); // 0=vas, 1=hétfő, ...
+  const daysUntilNextMonday = ((8 - day) % 7) || 7;
+  d.setDate(d.getDate() + daysUntilNextMonday);
+  return d;
 }
 
 function renderDay(res, dayData) {
@@ -87,9 +105,9 @@ app.get("/", async (req, res) => {
     trim: true
   });
 
-  // ✅ EREDETI struktúra (mai / köv. munkanap)
+  // ➡️ EREDETI struktúra (mai + köv. munkanap)
   const data = {};
-  // ✅ ÚJ: dátum-alapú struktúra (következő hét)
+  // ➡️ ÚJ: dátum alapú index (következő hét)
   const dataByDate = {};
 
   rows.forEach(r => {
@@ -97,7 +115,6 @@ app.get("/", async (req, res) => {
     const etterem = r.etterem || "Alap étterem";
     const tipus = r.tipus || "Egyéb";
     const etel = r.etel;
-
     if (!etel) return;
 
     if (!data[nap]) data[nap] = {};
@@ -140,32 +157,26 @@ app.get("/", async (req, res) => {
     "<h2>Következő munkanap (" +
       nextWorkdayDate.toISOString().split("T")[0] +
       " – " +
-      capitalize(
-        ["vasárnap","hétfő","kedd","szerda","csütörtök","péntek","szombat"]
-        [nextWorkdayDate.getDay()]
-      ) +
+      capitalize(napNevek[nextWorkdayDate.getDay()]) +
       ")</h2>"
   );
-  const nextNapKod = normalizeNap(
-    ["vasárnap","hétfő","kedd","szerda","csütörtök","péntek","szombat"]
-    [nextWorkdayDate.getDay()]
+  renderDay(
+    res,
+    data[normalizeNap(napNevek[nextWorkdayDate.getDay()])]
   );
-  renderDay(res, data[nextNapKod]);
 
-  /* ---- KÖVETKEZŐ HÉT (DÁTUM-ALAPON, BIZTONSÁGOSAN) ---- */
+  /* ---- KÖVETKEZŐ HÉT (HÉTFŐ → PÉNTEK) ---- */
   res.write("<hr>");
   res.write("<h2>Következő hét</h2>");
 
-  let d = new Date(nextWorkdayDate);
+  const monday = getNextWeekMonday(today.dateObj);
+
   for (let i = 0; i < 5; i++) {
-    if (i > 0) d.setDate(d.getDate() + 1);
-    if (d.getDay() < 1 || d.getDay() > 5) continue;
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
 
     const iso = d.toISOString().split("T")[0];
-    const napNev = capitalize(
-      ["vasárnap","hétfő","kedd","szerda","csütörtök","péntek","szombat"]
-      [d.getDay()]
-    );
+    const napNev = capitalize(napNevek[d.getDay()]);
 
     res.write("<h3>" + iso + " – " + napNev + "</h3>");
     renderDay(res, dataByDate[iso]);
@@ -179,7 +190,7 @@ app.get("/", async (req, res) => {
 
   res.write("<hr>");
   res.write("<h3>Honlap elérhetősége</h3>");
-  res.write('<img src="' + qrUrl + '" alt="QR kód"><br>');
+  res.write('' + qrUrl + '<br>');
   res.write(
     "<p style='font-size:0.9em;color:#555;'>A szerver felébredése néhány másodpercet igénybe vehet.</p>"
   );
@@ -190,5 +201,5 @@ app.get("/", async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log("Menü szerver fut – teszt: következő hét dátum-alapon");
+  console.log("Menü szerver fut – következő hét hétfőtől péntekig (TESZT)");
 });
