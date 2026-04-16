@@ -5,7 +5,6 @@ const { parse } = require("csv-parse/sync");
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Sheet neve pontosan!
 const CSV_URL =
   "https://docs.google.com/spreadsheets/d/1yPZUVn4PvNkGlyXdUedMkCWBa0J1f4Eutl9JwMLHBWE/export?format=csv&sheet=ADATOK";
 
@@ -17,30 +16,29 @@ function normalizeNap(s) {
     .trim();
 }
 
-function capitalize(str) {
-  return str.charAt(0).toUpperCase() + str.slice(1);
+function capitalize(s) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-function getTodayHuInfo() {
+function getHuDateInfo(offsetDays = 0) {
   const now = new Date(
     new Date().toLocaleString("en-US", { timeZone: "Europe/Budapest" })
   );
+  now.setDate(now.getDate() + offsetDays);
 
-  const napok = [
-    "vasárnap",
-    "hétfő",
-    "kedd",
-    "szerda",
-    "csütörtök",
-    "péntek",
-    "szombat"
+  const napNevek = [
+    "vasárnap","hétfő","kedd","szerda","csütörtök","péntek","szombat"
+  ];
+  const kodok = [
+    "vasarnap","hetfo","kedd","szerda","csutortok","pentek","szombat"
   ];
 
-  const datum = now.toISOString().split("T")[0];
-  const napNev = napok[now.getDay()];
-  const napKod = normalizeNap(napNev);
-
-  return { datum, napNev, napKod };
+  return {
+    datum: now.toISOString().split("T")[0],
+    napNev: napNevek[now.getDay()],
+    napKod: kodok[now.getDay()],
+    napIndex: now.getDay()
+  };
 }
 
 app.get("/", async (req, res) => {
@@ -53,75 +51,79 @@ app.get("/", async (req, res) => {
     trim: true
   });
 
-  const { datum, napNev, napKod } = getTodayHuInfo();
+  const today = getHuDateInfo(0);
 
+  // következő munkanap meghatározása
+  let nextWorkdayOffset = 1;
+  while ([0,6].includes(getHuDateInfo(nextWorkdayOffset).napIndex)) {
+    nextWorkdayOffset++;
+  }
+  const nextDay = getHuDateInfo(nextWorkdayOffset);
+
+  // adatstruktúra: nap -> etterem -> tipus -> etel
   const data = {};
 
   rows.forEach(r => {
-    const etterem = r.etterem || "Alap étterem";
     const nap = normalizeNap(r.nap);
+    const etterem = r.etterem || "Alap étterem";
     const tipus = r.tipus || "Egyéb";
     const etel = r.etel;
+    if (!etel) return;
 
-    if (nap !== napKod || !etel) return;
+    if (!data[nap]) data[nap] = {};
+    if (!data[nap][etterem]) data[nap][etterem] = {};
+    if (!data[nap][etterem][tipus]) data[nap][etterem][tipus] = [];
 
-    if (!data[etterem]) data[etterem] = {};
-    if (!data[etterem][tipus]) data[etterem][tipus] = [];
-
-    data[etterem][tipus].push(etel);
+    data[nap][etterem][tipus].push(etel);
   });
 
-  const baseUrl = req.protocol + "://" + req.get("host");
-  const qrUrl =
-    "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" +
-    encodeURIComponent(baseUrl);
+  res.write("<!DOCTYPE html><html lang='hu'><head>");
+  res.write("<meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1'>");
+  res.write("<title>Mai menü</title></head><body>");
 
-  res.write("<!DOCTYPE html>");
-  res.write("<html lang='hu'>");
-  res.write("<head>");
-  res.write("<meta charset='UTF-8'>");
-  res.write("<meta name='viewport' content='width=device-width, initial-scale=1'>");
-  res.write("<title>Mai menü</title>");
-  res.write("</head>");
-  res.write("<body>");
+  // ===== MAI =====
+  res.write(`<h1>Mai menü (${today.datum} – ${capitalize(today.napNev)})</h1>`);
+  renderDay(res, data[today.napKod]);
 
-  res.write("<h1>Mai menü (" + datum + " – " + capitalize(napNev) + ")</h1>");
+  // ===== KÖVETKEZŐ MUNKANAP =====
+  res.write(`<hr><h2>Következő munkanap (${capitalize(nextDay.napNev)})</h2>`);
+  renderDay(res, data[nextDay.napKod]);
 
-  let vanAdat = false;
+  // ===== TELJES HÉT (ÖSSZECSUKHATÓ) =====
+  res.write("<hr><details><summary><strong>A hét további napjai</strong></summary>");
+  const maradekNapok = ["hetfo","kedd","szerda","csutortok","pentek"];
 
-  for (const etterem in data) {
-    vanAdat = true;
-    res.write("<h2>" + etterem + "</h2>");
-
-    const csoportok = data[etterem];
-    for (const tipus in csoportok) {
-      res.write("<h3>" + tipus + "</h3>");
-      res.write("<ul>");
-      csoportok[tipus].forEach(e => {
-        res.write("<li>" + e + "</li>");
-      });
-      res.write("</ul>");
+  maradekNapok.forEach(napKod => {
+    if (napKod === today.napKod || napKod === nextDay.napKod) return;
+    if (data[napKod]) {
+      res.write(`<h3>${capitalize(napKod)}</h3>`);
+      renderDay(res, data[napKod]);
     }
-  }
+  });
+  res.write("</details>");
 
-  if (!vanAdat) {
-    res.write("<p>Nincs adat ma</p>");
-  }
-
-  // ---- QR-kód + megjegyzés (FIXÁLVA) ----
-  res.write("<hr>");
-  res.write("<h3>Honlap elérhetősége</h3>");
-  res.write("<img src='" + qrUrl + "' alt='QR kód' style='max-width:200px;'>");
-  res.write(
-    "<p style='font-size:0.9em;color:#555;'>A szerver felébredése néhány másodpercet igénybe vehet.</p>"
-  );
-  res.write("<p>" + baseUrl + "</p>");
-
-  res.write("</body>");
-  res.write("</html>");
+  res.write("</body></html>");
   res.end();
 });
 
-app.listen(port, () => {
-  console.log("Menü szerver fut:", port);
-});
+function renderDay(res, dayData) {
+  if (!dayData) {
+    res.write("<p>Nincs adat</p>");
+    return;
+  }
+  for (const etterem in dayData) {
+    res.write(`<h3>${etterem}</h3>`);
+    for (const tipus in dayData[etterem]) {
+      res.write(`<strong>${tipus}</strong><ul>`);
+      dayData[etterem][tipus].forEach(e =>
+        res.write(`<li>${e}</li>`)
+      );
+      res.write("</ul>");
+    }
+  }
+}
+
+app.listen(port, () =>
+  console.log("Menü szerver fut:", port)
+);
+``
