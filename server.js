@@ -5,7 +5,7 @@ const { parse } = require("csv-parse/sync");
 const app = express();
 const port = process.env.PORT || 3000;
 
-// ✅ HELYES CSV URL (nincs &amp;)
+// CSV export – helyes URL
 const CSV_URL =
   "https://docs.google.com/spreadsheets/d/1yPZUVn4PvNkGlyXdUedMkCWBa0J1f4Eutl9JwMLHBWE/export?format=csv&sheet=ADATOK";
 
@@ -29,11 +29,27 @@ function getTodayHu() {
   const now = new Date(
     new Date().toLocaleString("en-US", { timeZone: "Europe/Budapest" })
   );
-
   return {
-    iso: now.toISOString().split("T")[0], // YYYY-MM-DD
-    napNev: napNevek[now.getDay()]
+    dateObj: now,
+    iso: now.toISOString().split("T")[0],
+    napNev: napNevek[now.getDay()],
+    dayIndex: now.getDay()
   };
+}
+
+function getNextWorkdayHu(fromDate) {
+  const d = new Date(fromDate);
+  while (true) {
+    d.setDate(d.getDate() + 1);
+    const idx = d.getDay(); // 1–5 = H–P
+    if (idx >= 1 && idx <= 5) {
+      return {
+        dateObj: new Date(d),
+        iso: d.toISOString().split("T")[0],
+        napNev: napNevek[idx]
+      };
+    }
+  }
 }
 
 function renderDay(res, dayData) {
@@ -68,7 +84,7 @@ app.get("/", async (req, res) => {
   });
 
   /**
-   * ✅ ADATSTRUKTÚRA (DÁTUM ALAPON)
+   * ✅ DÁTUM-ALAPÚ ADATSTRUKTÚRA
    * datum -> etterem -> tipus -> ételek[]
    */
   const dataByDate = {};
@@ -76,7 +92,7 @@ app.get("/", async (req, res) => {
   rows.forEach(r => {
     if (!r.datum || !r.etel) return;
 
-    const datum = r.datum; // pl. 2026-04-16
+    const datum = r.datum; // pl. 2026-04-17
     const etterem = r.etterem || "Alap étterem";
     const tipus = r.tipus || "Egyéb";
 
@@ -90,6 +106,7 @@ app.get("/", async (req, res) => {
   });
 
   const today = getTodayHu();
+  const nextDay = getNextWorkdayHu(today.dateObj);
 
   /* ---------- HTML ---------- */
 
@@ -108,6 +125,17 @@ app.get("/", async (req, res) => {
       ")</h1>"
   );
   renderDay(res, dataByDate[today.iso]);
+
+  /* ---- KÖVETKEZŐ MUNKANAP ---- */
+  res.write("<hr>");
+  res.write(
+    "<h2>Következő munkanap (" +
+      nextDay.iso +
+      " – " +
+      capitalize(nextDay.napNev) +
+      ")</h2>"
+  );
+  renderDay(res, dataByDate[nextDay.iso]);
 
   /* ---- QR + MEGJEGYZÉS ---- */
   const baseUrl = req.protocol + "://" + req.get("host");
@@ -128,5 +156,5 @@ app.get("/", async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log("Menü szerver fut – dátum alapú stabil verzió");
+  console.log("Menü szerver fut – dátum alap + következő munkanap");
 });
