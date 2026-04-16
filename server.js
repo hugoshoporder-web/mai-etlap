@@ -5,7 +5,7 @@ const { parse } = require("csv-parse/sync");
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Sheet neve PONTOSAN
+// ✅ FONTOS: NINCS &amp;
 const CSV_URL =
   "https://docs.google.com/spreadsheets/d/1yPZUVn4PvNkGlyXdUedMkCWBa0J1f4Eutl9JwMLHBWE/export?format=csv&sheet=ADATOK";
 
@@ -24,22 +24,8 @@ function capitalize(s) {
 }
 
 const napNevek = [
-  "vasárnap",
-  "hétfő",
-  "kedd",
-  "szerda",
-  "csütörtök",
-  "péntek",
-  "szombat"
-];
-const napKodok = [
-  "vasarnap",
-  "hetfo",
-  "kedd",
-  "szerda",
-  "csutortok",
-  "pentek",
-  "szombat"
+  "vasárnap", "hétfő", "kedd", "szerda",
+  "csütörtök", "péntek", "szombat"
 ];
 
 function getTodayHu() {
@@ -51,7 +37,7 @@ function getTodayHu() {
     dateObj: now,
     datum: now.toISOString().split("T")[0],
     napNev: napNevek[now.getDay()],
-    napKod: napKodok[now.getDay()],
+    napKod: normalizeNap(napNevek[now.getDay()]),
     dayIndex: now.getDay()
   };
 }
@@ -65,10 +51,10 @@ function getNextWorkday(fromDate) {
   }
 }
 
-// ✅ KULCS: következő hét HÉTFŐ dátuma
-function getNextWeekMonday(todayDate) {
-  const d = new Date(todayDate);
-  const day = d.getDay(); // 0=vas, 1=hétfő, ...
+// ✅ Következő hét hétfője
+function getNextWeekMonday(fromDate) {
+  const d = new Date(fromDate);
+  const day = d.getDay(); // 0=vas, 1=hétfő
   const daysUntilNextMonday = ((8 - day) % 7) || 7;
   d.setDate(d.getDate() + daysUntilNextMonday);
   return d;
@@ -105,9 +91,9 @@ app.get("/", async (req, res) => {
     trim: true
   });
 
-  // ➡️ EREDETI struktúra (mai + köv. munkanap)
+  // ✅ Alap (mai + köv. munkanap)
   const data = {};
-  // ➡️ ÚJ: dátum alapú index (következő hét)
+  // ✅ Dátum alapú (köv. hét)
   const dataByDate = {};
 
   rows.forEach(r => {
@@ -141,13 +127,9 @@ app.get("/", async (req, res) => {
   res.write("<title>Mai menü</title>");
   res.write("</head><body>");
 
-  /* ---- MAI MENÜ ---- */
+  /* ---- MAI ---- */
   res.write(
-    "<h1>Mai menü (" +
-      today.datum +
-      " – " +
-      capitalize(today.napNev) +
-      ")</h1>"
+    "<h1>Mai menü (" + today.datum + " – " + capitalize(today.napNev) + ")</h1>"
   );
   renderDay(res, data[today.napKod]);
 
@@ -160,10 +142,7 @@ app.get("/", async (req, res) => {
       capitalize(napNevek[nextWorkdayDate.getDay()]) +
       ")</h2>"
   );
-  renderDay(
-    res,
-    data[normalizeNap(napNevek[nextWorkdayDate.getDay()])]
-  );
+  renderDay(res, data[normalizeNap(napNevek[nextWorkdayDate.getDay()])]);
 
   /* ---- KÖVETKEZŐ HÉT (HÉTFŐ → PÉNTEK) ---- */
   res.write("<hr>");
@@ -182,7 +161,7 @@ app.get("/", async (req, res) => {
     renderDay(res, dataByDate[iso]);
   }
 
-  /* ---- QR + MEGJEGYZÉS ---- */
+  /* ---- QR + MEGJEGYZÉS ✅ JAVÍTVA ---- */
   const baseUrl = req.protocol + "://" + req.get("host");
   const qrUrl =
     "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" +
@@ -190,7 +169,7 @@ app.get("/", async (req, res) => {
 
   res.write("<hr>");
   res.write("<h3>Honlap elérhetősége</h3>");
-  res.write('' + qrUrl + '<br>');
+  res.write('<img src="' + qrUrl + '" alt="QR kód"><br>');
   res.write(
     "<p style='font-size:0.9em;color:#555;'>A szerver felébredése néhány másodpercet igénybe vehet.</p>"
   );
@@ -201,5 +180,5 @@ app.get("/", async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log("Menü szerver fut – következő hét hétfőtől péntekig (TESZT)");
+  console.log("Menü szerver fut – TESZT (QR javítva, köv. hét helyes)");
 });
