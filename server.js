@@ -5,11 +5,10 @@ const { parse } = require("csv-parse/sync");
 const app = express();
 const port = process.env.PORT || 3000;
 
-// ÁLLÍTSD BE pontosan a sheet nevét
+// Sheet neve pontosan!
 const CSV_URL =
   "https://docs.google.com/spreadsheets/d/1yPZUVn4PvNkGlyXdUedMkCWBa0J1f4Eutl9JwMLHBWE/export?format=csv&sheet=ADATOK";
 
-// nap normalizálás (ékezet, nagybetű nem számít)
 function normalizeNap(s) {
   return (s || "")
     .toLowerCase()
@@ -18,12 +17,10 @@ function normalizeNap(s) {
     .trim();
 }
 
-// első betű nagybetű
 function capitalize(str) {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-// magyar dátum + nap
 function getTodayHuInfo() {
   const now = new Date(
     new Date().toLocaleString("en-US", { timeZone: "Europe/Budapest" })
@@ -39,9 +36,9 @@ function getTodayHuInfo() {
     "szombat"
   ];
 
-  const datum = now.toISOString().split("T")[0]; // YYYY-MM-DD
+  const datum = now.toISOString().split("T")[0];
   const napNev = napok[now.getDay()];
-  const napKod = normalizeNap(napNev); // hetfo, kedd, stb.
+  const napKod = normalizeNap(napNev);
 
   return { datum, napNev, napKod };
 }
@@ -58,7 +55,6 @@ app.get("/", async (req, res) => {
 
   const { datum, napNev, napKod } = getTodayHuInfo();
 
-  // struktúra: etterem -> tipus -> [ételek]
   const data = {};
 
   rows.forEach(r => {
@@ -75,7 +71,6 @@ app.get("/", async (req, res) => {
     data[etterem][tipus].push(etel);
   });
 
-  // ---- HTML KIÍRÁS ----
   const baseUrl = req.protocol + "://" + req.get("host");
   const qrUrl =
     "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" +
@@ -113,10 +108,10 @@ app.get("/", async (req, res) => {
     res.write("<p>Nincs adat ma</p>");
   }
 
-  // ---- QR-kód + megjegyzés ----
+  // ---- QR-kód + megjegyzés (FIXÁLVA) ----
   res.write("<hr>");
   res.write("<h3>Honlap elérhetősége</h3>");
-  res.write("<img src='" + qrUrl + "' alt='QR kód a honlaphoz'>");
+  res.write("<img src='" + qrUrl + "' alt='QR kód' style='max-width:200px;'>");
   res.write(
     "<p style='font-size:0.9em;color:#555;'>A szerver felébredése néhány másodpercet igénybe vehet.</p>"
   );
