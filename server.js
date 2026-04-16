@@ -76,6 +76,11 @@ app.get("/", async (req, res) => {
   });
 
   // ---- HTML KIÍRÁS ----
+  const baseUrl = req.protocol + "://" + req.get("host");
+  const qrUrl =
+    "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" +
+    encodeURIComponent(baseUrl);
+
   res.write("<!DOCTYPE html>");
   res.write("<html lang='hu'>");
   res.write("<head>");
@@ -107,6 +112,15 @@ app.get("/", async (req, res) => {
   if (!vanAdat) {
     res.write("<p>Nincs adat ma</p>");
   }
+
+  // ---- QR-kód + megjegyzés ----
+  res.write("<hr>");
+  res.write("<h3>Honlap elérhetősége</h3>");
+  res.write("<img src='" + qrUrl + "' alt='QR kód a honlaphoz'>");
+  res.write(
+    "<p style='font-size:0.9em;color:#555;'>A szerver felébredése néhány másodpercet igénybe vehet.</p>"
+  );
+  res.write("<p>" + baseUrl + "</p>");
 
   res.write("</body>");
   res.write("</html>");
