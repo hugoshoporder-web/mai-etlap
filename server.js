@@ -5,36 +5,53 @@ const { parse } = require("csv-parse/sync");
 const app = express();
 const port = process.env.PORT || 3000;
 
-// ⬇️ PONTOSAN a sheet neve
+// Sheet neve PONTOSAN
 const CSV_URL =
   "https://docs.google.com/spreadsheets/d/1yPZUVn4PvNkGlyXdUedMkCWBa0J1f4Eutl9JwMLHBWE/export?format=csv&sheet=ADATOK";
 
-/* ===== SEGÉD ===== */
+/* -------- SEGÉDFÜGGVÉNYEK -------- */
+
+function normalizeNap(s) {
+  return (s || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
 
 function capitalize(s) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-function getHuDate(offset = 0) {
-  const d = new Date(
+function getTodayHu() {
+  const now = new Date(
     new Date().toLocaleString("en-US", { timeZone: "Europe/Budapest" })
   );
-  d.setDate(d.getDate() + offset);
 
   const napNevek = [
-    "vasárnap","hétfő","kedd","szerda",
-    "csütörtök","péntek","szombat"
+    "vasárnap",
+    "hétfő",
+    "kedd",
+    "szerda",
+    "csütörtök",
+    "péntek",
+    "szombat"
+  ];
+  const napKodok = [
+    "vasarnap",
+    "hetfo",
+    "kedd",
+    "szerda",
+    "csutortok",
+    "pentek",
+    "szombat"
   ];
 
   return {
-    iso: d.toISOString().split("T")[0], // YYYY-MM-DD
-    napNev: napNevek[d.getDay()],
-    napIndex: d.getDay()
+    datum: now.toISOString().split("T")[0],
+    napNev: napNevek[now.getDay()],
+    napKod: napKodok[now.getDay()]
   };
-}
-
-function isWorkday(idx) {
-  return idx >= 1 && idx <= 5;
 }
 
 function renderDay(res, dayData) {
@@ -44,7 +61,7 @@ function renderDay(res, dayData) {
   }
 
   for (const etterem in dayData) {
-    res.write("<h4>" + etterem + "</h4>");
+    res.write("<h3>" + etterem + "</h3>");
     for (const tipus in dayData[etterem]) {
       res.write("<strong>" + tipus + "</strong>");
       res.write("<ul>");
@@ -56,7 +73,7 @@ function renderDay(res, dayData) {
   }
 }
 
-/* ===== ROUTE ===== */
+/* -------- FŐ ROUTE -------- */
 
 app.get("/", async (req, res) => {
   const response = await fetch(CSV_URL);
@@ -68,97 +85,38 @@ app.get("/", async (req, res) => {
     trim: true
   });
 
-  /**
-   * ADAT: dátum alapú!
-   * datum -> etterem -> tipus -> ételek
-   */
-  const dataByDate = {};
+  // adat: nap -> etterem -> tipus -> ételek
+  const data = {};
   rows.forEach(r => {
-    if (!r.datum || !r.etel) return;
-
-    const datum = r.datum;
+    const nap = normalizeNap(r.nap);
     const etterem = r.etterem || "Alap étterem";
     const tipus = r.tipus || "Egyéb";
+    const etel = r.etel;
+    if (!etel) return;
 
-    if (!dataByDate[datum]) dataByDate[datum] = {};
-    if (!dataByDate[datum][etterem])
-      dataByDate[datum][etterem] = {};
-    if (!dataByDate[datum][etterem][tipus])
-      dataByDate[datum][etterem][tipus] = [];
+    if (!data[nap]) data[nap] = {};
+    if (!data[nap][etterem]) data[nap][etterem] = {};
+    if (!data[nap][etterem][tipus])
+      data[nap][etterem][tipus] = [];
 
-    dataByDate[datum][etterem][tipus].push(r.etel);
+    data[nap][etterem][tipus].push(etel);
   });
 
-  const today = getHuDate(0);
-
-  /* ---- KÖVETKEZŐ MUNKANAP ---- */
-  let offset = 1;
-  let nextWorkday;
-  while (offset < 14) {
-    const d = getHuDate(offset);
-    if (isWorkday(d.napIndex)) {
-      nextWorkday = d;
-      break;
-    }
-    offset++;
-  }
+  const today = getTodayHu();
 
   res.write("<!DOCTYPE html><html lang='hu'><head>");
   res.write("<meta charset='UTF-8'>");
   res.write("<meta name='viewport' content='width=device-width, initial-scale=1'>");
-  res.write("<title>Mai menü</title></head><body>");
+  res.write("<title>Mai menü</title>");
+  res.write("</head><body>");
 
-  /* ===== MAI ===== */
+  /* ---- MAI MENÜ ---- */
   res.write(
-    "<h1>Mai menü (" +
-      today.iso +
-      " – " +
-      capitalize(today.napNev) +
-      ")</h1>"
+    "<h1>Mai menü (" + today.datum + " – " + capitalize(today.napNev) + ")</h1>"
   );
-  renderDay(res, dataByDate[today.iso]);
+  renderDay(res, data[today.napKod]);
 
-  /* ===== KÖVETKEZŐ MUNKANAP ===== */
-  if (nextWorkday) {
-    res.write("<hr>");
-    res.write(
-      "<h2>Következő munkanap (" +
-        nextWorkday.iso +
-        " – " +
-        capitalize(nextWorkday.napNev) +
-        ")</h2>"
-    );
-    renderDay(res, dataByDate[nextWorkday.iso]);
-  }
-
-  /* ===== TOVÁBBI NAPOK (CSA K DÁTUM ALAPON) ===== */
-  res.write("<hr>");
-  res.write("<details><summary><strong>A hét további napjai</strong></summary>");
-
-  // 10 jövőbeli munkanapot mutatunk max.
-  let shown = 0;
-  let futureOffset = offset + 1;
-
-  while (futureOffset < offset + 15 && shown < 10) {
-    const d = getHuDate(futureOffset++);
-    if (!isWorkday(d.napIndex)) continue;
-    if (d.iso === today.iso) continue;
-    if (nextWorkday && d.iso === nextWorkday.iso) continue;
-
-    res.write(
-      "<h3>" +
-        d.iso +
-        " – " +
-        capitalize(d.napNev) +
-        "</h3>"
-    );
-    renderDay(res, dataByDate[d.iso]);
-    shown++;
-  }
-
-  res.write("</details>");
-
-  /* ===== QR + MEGJEGYZÉS (VÁLTOZATLAN) ===== */
+  /* ---- QR + MEGJEGYZÉS ---- */
   const baseUrl = req.protocol + "://" + req.get("host");
   const qrUrl =
     "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" +
@@ -177,6 +135,5 @@ app.get("/", async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log("Menü szerver fut – végleges, dátum‑alapú.");
+  console.log("Menü szerver fut – stabil verzió");
 });
-``
