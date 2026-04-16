@@ -7,7 +7,7 @@ const port = process.env.PORT || 3000;
 
 // Sheet neve PONTOSAN
 const CSV_URL =
-  "https://docs.google.com/spreadsheets/d/1yPZUVn4PvNkGlyXdUedMkCWBa0J1f4Eutl9JwMLHBWE/export?format=csv&amp;sheet=ADATOK";
+  "https://docs.google.com/spreadsheets/d/1yPZUVn4PvNkGlyXdUedMkCWBa0J1f4Eutl9JwMLHBWE/export?format=csv&sheet=ADATOK";
 
 /* -------- SEGÉDFÜGGVÉNYEK -------- */
 
@@ -54,58 +54,71 @@ function getTodayHu() {
   };
 }
 
+// ✅ ÚJ: következő munkanap
 function getNextWorkdayHu() {
   let offset = 1;
+
   while (offset <= 7) {
     const d = new Date(
       new Date().toLocaleString("en-US", { timeZone: "Europe/Budapest" })
     );
     d.setDate(d.getDate() + offset);
 
-    const day = d.getDay();
-    if (day >= 1 && day <= 5) {
+    const dayIndex = d.getDay(); // 1–5 = H–P
+    if (dayIndex >= 1 && dayIndex <= 5) {
       const napNevek = [
-        "vasárnap", "hétfő", "kedd", "szerda",
-        "csütörtök", "péntek", "szombat"
+        "vasárnap",
+        "hétfő",
+        "kedd",
+        "szerda",
+        "csütörtök",
+        "péntek",
+        "szombat"
       ];
       const napKodok = [
-        "vasarnap", "hetfo", "kedd", "szerda",
-        "csutortok", "pentek", "szombat"
+        "vasarnap",
+        "hetfo",
+        "kedd",
+        "szerda",
+        "csutortok",
+        "pentek",
+        "szombat"
       ];
 
       return {
         datum: d.toISOString().split("T")[0],
-        napNev: napNevek[day],
-        napKod: napKodok[day]
+        napNev: napNevek[dayIndex],
+        napKod: napKodok[dayIndex]
       };
     }
     offset++;
   }
+
   return null;
 }
 
 function renderDay(res, dayData) {
   if (!dayData || Object.keys(dayData).length === 0) {
-    res.write("&lt;p&gt;&lt;em&gt;Nincs adat.&lt;/em&gt;&lt;/p&gt;");
+    res.write("<p><em>Nincs adat.</em></p>");
     return;
   }
 
   for (const etterem in dayData) {
-    res.write("&lt;h3&gt;" + etterem + "&lt;/h3&gt;");
+    res.write("<h3>" + etterem + "</h3>");
     for (const tipus in dayData[etterem]) {
-      res.write("&lt;strong&gt;" + tipus + "&lt;/strong&gt;");
-      res.write("&lt;ul&gt;");
-      dayData[etterem][tipus].forEach(e =&gt;
-        res.write("&lt;li&gt;" + e + "&lt;/li&gt;")
+      res.write("<strong>" + tipus + "</strong>");
+      res.write("<ul>");
+      dayData[etterem][tipus].forEach(e =>
+        res.write("<li>" + e + "</li>")
       );
-      res.write("&lt;/ul&gt;");
+      res.write("</ul>");
     }
   }
 }
 
 /* -------- FŐ ROUTE -------- */
 
-app.get("/", async (req, res) =&gt; {
+app.get("/", async (req, res) => {
   const response = await fetch(CSV_URL);
   const text = await response.text();
 
@@ -115,8 +128,9 @@ app.get("/", async (req, res) =&gt; {
     trim: true
   });
 
+  // adat: nap -> etterem -> tipus -> ételek
   const data = {};
-  rows.forEach(r =&gt; {
+  rows.forEach(r => {
     const nap = normalizeNap(r.nap);
     const etterem = r.etterem || "Alap étterem";
     const tipus = r.tipus || "Egyéb";
@@ -132,28 +146,29 @@ app.get("/", async (req, res) =&gt; {
   });
 
   const today = getTodayHu();
+  const nextDay = getNextWorkdayHu();
 
-  res.write("&lt;!DOCTYPE html&gt;&lt;html lang='hu'&gt;&lt;head&gt;");
-  res.write("&lt;meta charset='UTF-8'&gt;");
-  res.write("&lt;meta name='viewport' content='width=device-width, initial-scale=1'&gt;");
-  res.write("&lt;title&gt;Mai menü&lt;/title&gt;");
-  res.write("&lt;/head&gt;&lt;body&gt;");
+  res.write("<!DOCTYPE html><html lang='hu'><head>");
+  res.write("<meta charset='UTF-8'>");
+  res.write("<meta name='viewport' content='width=device-width, initial-scale=1'>");
+  res.write("<title>Mai menü</title>");
+  res.write("</head><body>");
 
+  /* ---- MAI MENÜ ---- */
   res.write(
-    "&lt;h1&gt;Mai menü (" + today.datum + " – " + capitalize(today.napNev) + ")&lt;/h1&gt;"
+    "<h1>Mai menü (" + today.datum + " – " + capitalize(today.napNev) + ")</h1>"
   );
   renderDay(res, data[today.napKod]);
 
   /* ---- KÖVETKEZŐ MUNKANAP ---- */
-  const nextDay = getNextWorkdayHu();
   if (nextDay) {
-    res.write("&lt;hr&gt;");
+    res.write("<hr>");
     res.write(
-      "&lt;h2&gt;Következő munkanap (" +
+      "<h2>Következő munkanap (" +
         nextDay.datum +
         " – " +
         capitalize(nextDay.napNev) +
-        ")&lt;/h2&gt;"
+        ")</h2>"
     );
     renderDay(res, data[nextDay.napKod]);
   }
@@ -161,21 +176,21 @@ app.get("/", async (req, res) =&gt; {
   /* ---- QR + MEGJEGYZÉS ---- */
   const baseUrl = req.protocol + "://" + req.get("host");
   const qrUrl =
-    "https://api.qrserver.com/v1/create-qr-code/?size=200x200&amp;data=" +
+    "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" +
     encodeURIComponent(baseUrl);
 
-  res.write("&lt;hr&gt;");
-  res.write("&lt;h3&gt;Honlap elérhetősége&lt;/h3&gt;");
-  res.write('&lt;img src="' + qrUrl + '" alt="QR kód"&gt;&lt;br&gt;');
+  res.write("<hr>");
+  res.write("<h3>Honlap elérhetősége</h3>");
+  res.write('<img src="' + qrUrl + '" alt="QR kód"><br>');
   res.write(
-    "&lt;p style='font-size:0.9em;color:#555;'&gt;A szerver felébredése néhány másodpercet igénybe vehet.&lt;/p&gt;"
+    "<p style='font-size:0.9em;color:#555;'>A szerver felébredése néhány másodpercet igénybe vehet.</p>"
   );
-  res.write("&lt;p&gt;" + baseUrl + "&lt;/p&gt;");
+  res.write("<p>" + baseUrl + "</p>");
 
-  res.write("&lt;/body&gt;&lt;/html&gt;");
+  res.write("</body></html>");
   res.end();
 });
 
-app.listen(port, () =&gt; {
-  console.log("Menü szerver fut – stabil verzió + következő munkanap");
+app.listen(port, () => {
+  console.log("Menü szerver fut – alap + következő munkanap");
 });
