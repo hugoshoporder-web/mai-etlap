@@ -85,24 +85,25 @@ app.get("/", async (req, res) => {
 
   /* ===== CSAK EZ AZ ÚJ RÉSZ: TÖMÖR CSS ===== */
   res.write(`
-    <style>
-      body { 
-        font-family: system-ui, sans-serif; 
-        line-height: 1.3; 
-      }
-      h1 { margin-bottom: 0.6em; }
-      h2 { margin: 0.8em 0 0.3em; }
-      h3 { margin: 0.6em 0 0.2em; }
-      h4 { margin: 0.4em 0 0.1em; }
-      ul { 
-        margin: 0.2em 0 0.6em 1.2em; 
-        padding: 0;
-      }
-      li { margin: 0; }
-      details { margin-top: 0.8em; }
-      p { margin: 0.3em 0; }
-      hr { margin: 1em 0; }
-    </style>
+<style>
+  ul {
+    margin-top: 0.2em;
+    margin-bottom: 0.4em;
+    padding-left: 1.2em;
+    list-style: none; /* pont eltüntetése */
+  }
+  li {
+    margin: 0;
+    line-height: 1.2;
+  }
+  li::marker {
+    content: ""; /* fallback */
+  }
+  li::before {
+    content: "– ";
+    margin-right: 0.2em;
+  }
+</style>
   `);
 
   res.write("</head><body>");
