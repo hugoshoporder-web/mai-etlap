@@ -64,6 +64,7 @@ app.get("/", async (req, res) => {
   const csv = await (await fetch(CSV_URL)).text();
   const rows = parse(csv, { columns: true, skip_empty_lines: true, trim: true });
 
+  // dátum-alapú index
   const dataByDate = {};
   rows.forEach(r => {
     if (!r.datum || !r.etel) return;
@@ -75,30 +76,12 @@ app.get("/", async (req, res) => {
 
   const today = todayHu();
   const monday = weekMonday(today);
-
   const todayOffset = Math.max(0, today.getDay() - 1);
   const nextOffset = todayOffset + 1;
 
   res.write("<!DOCTYPE html><html lang='hu'><head>");
-  res.write("<meta charset='UTF-8'>");
-  res.write("<meta name='viewport' content='width=device-width, initial-scale=1'>");
-  res.write("<title>Heti menü</title>");
-
-  /* ✅ CSAK LISTASŰRÍTÉS */
-  res.write(`
-    <style>
-      ul {
-        margin-top: 0.2em;
-        margin-bottom: 0.4em;
-      }
-      li {
-        margin: 0;
-        line-height: 1.2;
-      }
-    </style>
-  `);
-
-  res.write("</head><body>");
+  res.write("<meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1'>");
+  res.write("<title>Heti menü</title></head><body>");
 
   const friday = new Date(monday);
   friday.setDate(monday.getDate() + 4);
@@ -125,7 +108,9 @@ app.get("/", async (req, res) => {
     for (let i = nextOffset + 1; i < 5; i++) {
       const d = new Date(monday);
       d.setDate(monday.getDate() + i);
-      res.write("<h3>" + iso(d) + " – " + capitalize(napNevek[d.getDay()]) + "</h3>");
+      res.write("<h3>" +
+        iso(d) + " – " +
+        capitalize(napNevek[d.getDay()]) + "</h3>");
       renderDay(res, dataByDate[iso(d)]);
     }
     res.write("</details>");
@@ -148,7 +133,8 @@ app.get("/", async (req, res) => {
   if (hasNextWeekData) {
     res.write("<details><summary>Következő hét</summary>");
     nextWeekDays.forEach(d => {
-      res.write("<h3>" + iso(d) + " – " + capitalize(napNevek[d.getDay()]) + "</h3>");
+      res.write("<h3>" + iso(d) +
+        " – " + capitalize(napNevek[d.getDay()]) + "</h3>");
       renderDay(res, dataByDate[iso(d)]);
     });
     res.write("</details>");
@@ -162,7 +148,7 @@ app.get("/", async (req, res) => {
 
   res.write("<hr>");
   res.write("<h3>Honlap elérhetősége</h3>");
-  res.write('' + qrUrl + '<br>');
+  res.write('<img src="' + qrUrl + '" alt="QR kód"><br>');
   res.write("<p style='font-size:0.9em;color:#555;'>A szerver felébredése néhány másodpercet igénybe vehet.</p>");
   res.write("<p>" + baseUrl + "</p>");
 
@@ -171,5 +157,6 @@ app.get("/", async (req, res) => {
 });
 
 app.listen(port, () =>
-  console.log("Menü szerver fut – csak listasűrítés")
+  console.log("Menü szerver fut – MAI + következő nap + lenyílók")
 );
+``
