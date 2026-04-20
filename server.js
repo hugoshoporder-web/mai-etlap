@@ -8,7 +8,7 @@ const port = process.env.PORT || 3000;
 const CSV_URL =
   "https://docs.google.com/spreadsheets/d/1yPZUVn4PvNkGlyXdUedMkCWBa0J1f4Eutl9JwMLHBWE/export?format=csv&sheet=ADATOK";
 
-/* ===== SEGÉDFÜGGVÉNYEK ===== */
+/* ===== SEGÉD ===== */
 
 const napNevek = [
   "vasárnap",
@@ -75,6 +75,7 @@ app.get("/", async (req, res) => {
 
   const today = todayHu();
   const monday = weekMonday(today);
+
   const todayOffset = Math.max(0, today.getDay() - 1);
   const nextOffset = todayOffset + 1;
 
@@ -83,25 +84,17 @@ app.get("/", async (req, res) => {
   res.write("<meta name='viewport' content='width=device-width, initial-scale=1'>");
   res.write("<title>Heti menü</title>");
 
-  /* ===== CSAK EZ AZ ÚJ RÉSZ: TÖMÖR CSS ===== */
+  /* ✅ CSAK LISTASŰRÍTÉS */
   res.write(`
     <style>
-      body { 
-        font-family: system-ui, sans-serif; 
-        line-height: 1.3; 
+      ul {
+        margin-top: 0.2em;
+        margin-bottom: 0.4em;
       }
-      h1 { margin-bottom: 0.6em; }
-      h2 { margin: 0.8em 0 0.3em; }
-      h3 { margin: 0.6em 0 0.2em; }
-      h4 { margin: 0.4em 0 0.1em; }
-      ul { 
-        margin: 0.2em 0 0.6em 1.2em; 
-        padding: 0;
+      li {
+        margin: 0;
+        line-height: 1.2;
       }
-      li { margin: 0; }
-      details { margin-top: 0.8em; }
-      p { margin: 0.3em 0; }
-      hr { margin: 1em 0; }
     </style>
   `);
 
@@ -121,7 +114,8 @@ app.get("/", async (req, res) => {
     const nextDate = new Date(monday);
     nextDate.setDate(monday.getDate() + nextOffset);
     res.write("<h2>Következő nap (" +
-      iso(nextDate) + " – " + capitalize(napNevek[nextDate.getDay()]) + ")</h2>");
+      iso(nextDate) + " – " +
+      capitalize(napNevek[nextDate.getDay()]) + ")</h2>");
     renderDay(res, dataByDate[iso(nextDate)]);
   }
 
@@ -168,7 +162,7 @@ app.get("/", async (req, res) => {
 
   res.write("<hr>");
   res.write("<h3>Honlap elérhetősége</h3>");
-  res.write('<img src="' + qrUrl + '" alt="QR kód"><br>');
+  res.write('' + qrUrl + '<br>');
   res.write("<p style='font-size:0.9em;color:#555;'>A szerver felébredése néhány másodpercet igénybe vehet.</p>");
   res.write("<p>" + baseUrl + "</p>");
 
@@ -177,6 +171,5 @@ app.get("/", async (req, res) => {
 });
 
 app.listen(port, () =>
-  console.log("Menü szerver fut – tömörített térközökkel")
+  console.log("Menü szerver fut – csak listasűrítés")
 );
-``
