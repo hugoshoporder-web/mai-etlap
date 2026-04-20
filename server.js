@@ -8,7 +8,7 @@ const port = process.env.PORT || 3000;
 const CSV_URL =
   "https://docs.google.com/spreadsheets/d/1yPZUVn4PvNkGlyXdUedMkCWBa0J1f4Eutl9JwMLHBWE/export?format=csv&sheet=ADATOK";
 
-/* ===== SEGÉD ===== */
+/* ===== SEGÉDFÜGGVÉNYEK ===== */
 
 const napNevek = [
   "vasárnap",
@@ -64,7 +64,6 @@ app.get("/", async (req, res) => {
   const csv = await (await fetch(CSV_URL)).text();
   const rows = parse(csv, { columns: true, skip_empty_lines: true, trim: true });
 
-  // dátum-alapú index
   const dataByDate = {};
   rows.forEach(r => {
     if (!r.datum || !r.etel) return;
@@ -80,8 +79,33 @@ app.get("/", async (req, res) => {
   const nextOffset = todayOffset + 1;
 
   res.write("<!DOCTYPE html><html lang='hu'><head>");
-  res.write("<meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1'>");
-  res.write("<title>Heti menü</title></head><body>");
+  res.write("<meta charset='UTF-8'>");
+  res.write("<meta name='viewport' content='width=device-width, initial-scale=1'>");
+  res.write("<title>Heti menü</title>");
+
+  /* ===== CSAK EZ AZ ÚJ RÉSZ: TÖMÖR CSS ===== */
+  res.write(`
+    <style>
+      body { 
+        font-family: system-ui, sans-serif; 
+        line-height: 1.3; 
+      }
+      h1 { margin-bottom: 0.6em; }
+      h2 { margin: 0.8em 0 0.3em; }
+      h3 { margin: 0.6em 0 0.2em; }
+      h4 { margin: 0.4em 0 0.1em; }
+      ul { 
+        margin: 0.2em 0 0.6em 1.2em; 
+        padding: 0;
+      }
+      li { margin: 0; }
+      details { margin-top: 0.8em; }
+      p { margin: 0.3em 0; }
+      hr { margin: 1em 0; }
+    </style>
+  `);
+
+  res.write("</head><body>");
 
   const friday = new Date(monday);
   friday.setDate(monday.getDate() + 4);
@@ -97,8 +121,7 @@ app.get("/", async (req, res) => {
     const nextDate = new Date(monday);
     nextDate.setDate(monday.getDate() + nextOffset);
     res.write("<h2>Következő nap (" +
-      iso(nextDate) + " – " +
-      capitalize(napNevek[nextDate.getDay()]) + ")</h2>");
+      iso(nextDate) + " – " + capitalize(napNevek[nextDate.getDay()]) + ")</h2>");
     renderDay(res, dataByDate[iso(nextDate)]);
   }
 
@@ -108,9 +131,7 @@ app.get("/", async (req, res) => {
     for (let i = nextOffset + 1; i < 5; i++) {
       const d = new Date(monday);
       d.setDate(monday.getDate() + i);
-      res.write("<h3>" +
-        iso(d) + " – " +
-        capitalize(napNevek[d.getDay()]) + "</h3>");
+      res.write("<h3>" + iso(d) + " – " + capitalize(napNevek[d.getDay()]) + "</h3>");
       renderDay(res, dataByDate[iso(d)]);
     }
     res.write("</details>");
@@ -133,8 +154,7 @@ app.get("/", async (req, res) => {
   if (hasNextWeekData) {
     res.write("<details><summary>Következő hét</summary>");
     nextWeekDays.forEach(d => {
-      res.write("<h3>" + iso(d) +
-        " – " + capitalize(napNevek[d.getDay()]) + "</h3>");
+      res.write("<h3>" + iso(d) + " – " + capitalize(napNevek[d.getDay()]) + "</h3>");
       renderDay(res, dataByDate[iso(d)]);
     });
     res.write("</details>");
@@ -157,6 +177,6 @@ app.get("/", async (req, res) => {
 });
 
 app.listen(port, () =>
-  console.log("Menü szerver fut – MAI + következő nap + lenyílók")
+  console.log("Menü szerver fut – tömörített térközökkel")
 );
 ``
