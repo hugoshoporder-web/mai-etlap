@@ -173,6 +173,8 @@ app.get("/", async (req, res) => {
   res.write("<p style='font-size:0.9em;color:#555;'>A szerver felébredése néhány másodpercet igénybe vehet.</p>");
   res.write("<p>" + baseUrl + "</p>");
 
+  res.write("<p style='text-align:center;font-size:0.8em;color:#777;margin-top:1em;'>by István Gris</p>");
+``
   res.write("</body></html>");
   res.end();
 });
