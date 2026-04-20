@@ -8,7 +8,7 @@ const port = process.env.PORT || 3000;
 const CSV_URL =
   "https://docs.google.com/spreadsheets/d/1yPZUVn4PvNkGlyXdUedMkCWBa0J1f4Eutl9JwMLHBWE/export?format=csv&sheet=ADATOK";
 
-/* ===== SEGÉDFÜGGVÉNYEK ===== */
+/* ===== SEGÉD ===== */
 
 const napNevek = [
   "vasárnap",
@@ -75,6 +75,7 @@ app.get("/", async (req, res) => {
 
   const today = todayHu();
   const monday = weekMonday(today);
+
   const todayOffset = Math.max(0, today.getDay() - 1);
   const nextOffset = todayOffset + 1;
 
@@ -83,27 +84,23 @@ app.get("/", async (req, res) => {
   res.write("<meta name='viewport' content='width=device-width, initial-scale=1'>");
   res.write("<title>Heti menü</title>");
 
-  /* ===== CSAK EZ AZ ÚJ RÉSZ: TÖMÖR CSS ===== */
+  /* === CSAK LISTÁK SŰRÍTÉSE + VONAL JEL === */
   res.write(`
-<style>
-  ul {
-    margin-top: 0.2em;
-    margin-bottom: 0.4em;
-    padding-left: 1.2em;
-    list-style: none; /* pont eltüntetése */
-  }
-  li {
-    margin: 0;
-    line-height: 1.2;
-  }
-  li::marker {
-    content: ""; /* fallback */
-  }
-  li::before {
-    content: "– ";
-    margin-right: 0.2em;
-  }
-</style>
+    <style>
+      ul {
+        margin-top: 0.2em;
+        margin-bottom: 0.4em;
+        padding-left: 1.2em;
+        list-style: none;
+      }
+      li {
+        margin: 0;
+        line-height: 1.2;
+      }
+      li::before {
+        content: "– ";
+      }
+    </style>
   `);
 
   res.write("</head><body>");
@@ -122,7 +119,8 @@ app.get("/", async (req, res) => {
     const nextDate = new Date(monday);
     nextDate.setDate(monday.getDate() + nextOffset);
     res.write("<h2>Következő nap (" +
-      iso(nextDate) + " – " + capitalize(napNevek[nextDate.getDay()]) + ")</h2>");
+      iso(nextDate) + " – " +
+      capitalize(napNevek[nextDate.getDay()]) + ")</h2>");
     renderDay(res, dataByDate[iso(nextDate)]);
   }
 
@@ -138,7 +136,7 @@ app.get("/", async (req, res) => {
     res.write("</details>");
   }
 
-  /* ===== KÖVETKEZŐ HÉT (ha van adat) ===== */
+  /* ===== KÖVETKEZŐ HÉT (csak ha van adat) ===== */
   const nextWeekMonday = new Date(monday);
   nextWeekMonday.setDate(monday.getDate() + 7);
 
@@ -169,17 +167,17 @@ app.get("/", async (req, res) => {
 
   res.write("<hr>");
   res.write("<h3>Honlap elérhetősége</h3>");
-  res.write('<img src="' + qrUrl + '" alt="QR kód"><br>');
+  res.write(`<img src="${qrUrl}" alt="QR kód"><br>`);
   res.write("<p style='font-size:0.9em;color:#555;'>A szerver felébredése néhány másodpercet igénybe vehet.</p>");
   res.write("<p>" + baseUrl + "</p>");
 
+  /* ===== ALÁÍRÁS ===== */
   res.write("<p style='text-align:center;font-size:0.8em;color:#777;margin-top:1em;'>by István Gris</p>");
-``
+
   res.write("</body></html>");
   res.end();
 });
 
 app.listen(port, () =>
-  console.log("Menü szerver fut – tömörített térközökkel")
+  console.log("Menü szerver fut – végleges verzió")
 );
-``
