@@ -46,7 +46,6 @@ function renderDay(res, dayData) {
     res.write("<p><em>Nincs adat.</em></p>");
     return;
   }
-
   for (const etterem in dayData) {
     res.write("<h4>" + etterem + "</h4>");
     for (const tipus in dayData[etterem]) {
@@ -73,11 +72,9 @@ app.get("/", async (req, res) => {
     const etterem = r.etterem || "Alap étterem";
     const tipus = r.tipus || "Egyéb";
 
-    if (!dataByDate[datum]) dataByDate[datum] = {};
-    if (!dataByDate[datum][etterem]) dataByDate[datum][etterem] = {};
-    if (!dataByDate[datum][etterem][tipus])
-      dataByDate[datum][etterem][tipus] = [];
-
+    dataByDate[datum] ??= {};
+    dataByDate[datum][etterem] ??= {};
+    dataByDate[datum][etterem][tipus] ??= [];
     dataByDate[datum][etterem][tipus].push(r.etel);
   });
 
@@ -88,17 +85,15 @@ app.get("/", async (req, res) => {
   const nextOffset = todayOffset + 1;
 
   res.write("<!DOCTYPE html><html lang='hu'><head>");
-  res.write("<meta charset='UTF-8'>");
-  res.write("<meta name='viewport' content='width=device-width, initial-scale=1'>");
-  res.write("<title>Heti menü</title>");
-  res.write("</head><body>");
+  res.write("<meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1'>");
+  res.write("<title>Heti menü</title></head><body>");
 
   const friday = new Date(monday);
   friday.setDate(monday.getDate() + 4);
 
   res.write("<h1>Heti menü (" + formatISO(monday) + " – " + formatISO(friday) + ")</h1>");
 
-  /* --- KÖVETKEZŐ NAP --- */
+  /* ---- KÖVETKEZŐ NAP ---- */
   if (nextOffset < 5) {
     const nextDate = new Date(monday);
     nextDate.setDate(monday.getDate() + nextOffset);
@@ -107,7 +102,7 @@ app.get("/", async (req, res) => {
     renderDay(res, dataByDate[formatISO(nextDate)]);
   }
 
-  /* --- TÖBBI HÁTRALEVŐ NAP LENYÍLÓBAN --- */
+  /* ---- AKTUÁLIS HÉT TOVÁBBI NAPJAI ---- */
   if (nextOffset + 1 < 5) {
     res.write("<details><summary>A hét további napjai</summary>");
     for (let i = nextOffset + 1; i < 5; i++) {
@@ -120,7 +115,33 @@ app.get("/", async (req, res) => {
     res.write("</details>");
   }
 
-  /* ===== QR BLOKK – STABIL, NEM MÓDOSÍTJUK ===== */
+  /* ---- KÖVETKEZŐ HÉT (csak ha van adat) ---- */
+  const nextWeekMonday = new Date(monday);
+  nextWeekMonday.setDate(monday.getDate() + 7);
+
+  const nextWeekDates = [];
+  let hasNextWeekData = false;
+
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(nextWeekMonday);
+    d.setDate(nextWeekMonday.getDate() + i);
+    const iso = formatISO(d);
+    nextWeekDates.push(d);
+    if (dataByDate[iso]) hasNextWeekData = true;
+  }
+
+  if (hasNextWeekData) {
+    res.write("<details><summary>Következő hét</summary>");
+    nextWeekDates.forEach(d => {
+      const iso = formatISO(d);
+      res.write("<h3>" + iso +
+        " – " + capitalize(napNevek[d.getDay()]) + "</h3>");
+      renderDay(res, dataByDate[iso]);
+    });
+    res.write("</details>");
+  }
+
+  /* ===== QR BLOKK – VÁLTOZATLAN ===== */
   const baseUrl = req.protocol + "://" + req.get("host");
   const qrUrl =
     "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" +
@@ -137,5 +158,5 @@ app.get("/", async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log("Menü szerver fut – következő nap + lenyíló hátralévő napok");
+  console.log("Menü szerver fut – következő nap + lenyíló aktuális és következő hét");
 });
