@@ -8,10 +8,9 @@ const port = process.env.PORT || 3000;
 const CSV_URL =
   "https://docs.google.com/spreadsheets/d/1yPZUVn4PvNkGlyXdUedMkCWBa0J1f4Eutl9JwMLHBWE/export?format=csv&sheet=ADATOK";
 
-/* ===== SEGÉD ===== */
+/* ===== SEGÉDFÜGGVÉNYEK ===== */
 
 const napNevek = ["vasárnap","hétfő","kedd","szerda","csütörtök","péntek","szombat"];
-const honapRovid = ["jan.","febr.","márc.","ápr.","máj.","jún.","júl.","aug.","szept.","okt.","nov.","dec."];
 
 function capitalize(s) {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -34,8 +33,10 @@ function iso(d) {
   return d.toISOString().split("T")[0];
 }
 
-function formatShort(d) {
-  return honapRovid[d.getMonth()] + " " + d.getDate() + ".";
+function numeric(d) {
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${m}.${day}.`;
 }
 
 function renderDay(res, d) {
@@ -57,7 +58,7 @@ app.get("/", async (req, res) => {
 
   rows.forEach(r => {
     if (!r.datum || !r.etel) return;
-    etteremNev = r.etterem;          // CSAK A FEJLÉCBEN HASZNÁLJUK
+    etteremNev = r.etterem;
     dataByDate[r.datum] ??= {};
     dataByDate[r.datum][r.tipus] ??= [];
     dataByDate[r.datum][r.tipus].push(r.etel);
@@ -68,12 +69,17 @@ app.get("/", async (req, res) => {
   const friday = new Date(monday);
   friday.setDate(monday.getDate() + 4);
 
+  const todayIso = iso(today);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+  const tomorrowIso = iso(tomorrow);
+
   res.write("<!DOCTYPE html><html lang='hu'><head>");
   res.write("<meta charset='UTF-8'>");
   res.write("<meta name='viewport' content='width=device-width, initial-scale=1'>");
   res.write("<title>Heti menü</title>");
 
-  /* Lista stílus */
+  /* ===== LISTA STÍLUS ===== */
   res.write(`
     <style>
       ul { list-style:none; padding-left:1.2em; margin:0.2em 0; }
@@ -88,53 +94,44 @@ app.get("/", async (req, res) => {
   res.write(
     "<h1>Heti menü, " +
     etteremNev + " (" +
-    formatShort(monday) + " – " +
-    formatShort(friday) +
+    numeric(monday) + " – " +
+    numeric(friday) +
     ")</h1>"
   );
 
-  const todayIso = iso(today);
-
   /* ===== MAI NAP ===== */
   if (dataByDate[todayIso]) {
-    res.write("<h2>Mai nap</h2>");
+    res.write("<h2>Mai nap (" + numeric(today) + ")</h2>");
     renderDay(res, dataByDate[todayIso]);
   }
 
   /* ===== KÖVETKEZŐ NAP ===== */
-  const next = new Date(today);
-  next.setDate(today.getDate() + 1);
-  const nextIso = iso(next);
-
-  if (dataByDate[nextIso]) {
-    res.write("<h2>Következő nap</h2>");
-    renderDay(res, dataByDate[nextIso]);
+  if (dataByDate[tomorrowIso]) {
+    res.write("<h2>Következő nap (" + numeric(tomorrow) + ")</h2>");
+    renderDay(res, dataByDate[tomorrowIso]);
   }
 
   /* ===== AKTUÁLIS HÉT TOVÁBBI NAPJAI ===== */
-  const extraCurrentWeek = [];
-
+  const currentWeekFuture = [];
   for (let i = 0; i < 5; i++) {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
     const key = iso(d);
-
     if (
       dataByDate[key] &&
       key !== todayIso &&
-      key !== nextIso
+      key !== tomorrowIso &&
+      d > tomorrow
     ) {
-      extraCurrentWeek.push({ date: d, data: dataByDate[key] });
+      currentWeekFuture.push({ date: d, data: dataByDate[key] });
     }
   }
 
-  if (extraCurrentWeek.length) {
+  if (currentWeekFuture.length) {
     res.write("<details><summary>Aktuális hét további napjai</summary>");
-    extraCurrentWeek.forEach(item => {
-      res.write("<h3>" +
-        iso(item.date) + " – " +
-        capitalize(napNevek[item.date.getDay()]) +
-        "</h3>");
+    currentWeekFuture.forEach(item => {
+      res.write("<h3>" + iso(item.date) + " – " +
+        capitalize(napNevek[item.date.getDay()]) + "</h3>");
       renderDay(res, item.data);
     });
     res.write("</details>");
@@ -144,30 +141,27 @@ app.get("/", async (req, res) => {
   const nextWeekMonday = new Date(monday);
   nextWeekMonday.setDate(monday.getDate() + 7);
 
-  const nextWeekWithData = [];
-
+  const nextWeekData = [];
   for (let i = 0; i < 5; i++) {
     const d = new Date(nextWeekMonday);
     d.setDate(nextWeekMonday.getDate() + i);
     const key = iso(d);
     if (dataByDate[key]) {
-      nextWeekWithData.push({ date: d, data: dataByDate[key] });
+      nextWeekData.push({ date: d, data: dataByDate[key] });
     }
   }
 
-  if (nextWeekWithData.length) {
+  if (nextWeekData.length) {
     res.write("<details><summary>Következő hét</summary>");
-    nextWeekWithData.forEach(item => {
-      res.write("<h3>" +
-        iso(item.date) + " – " +
-        capitalize(napNevek[item.date.getDay()]) +
-        "</h3>");
+    nextWeekData.forEach(item => {
+      res.write("<h3>" + iso(item.date) + " – " +
+        capitalize(napNevek[item.date.getDay()]) + "</h3>");
       renderDay(res, item.data);
     });
     res.write("</details>");
   }
 
-  /* ===== QR BLOKK – HELYES, NEM BÁNTJUK ===== */
+  /* ===== QR BLOKK – STABIL ===== */
   const baseUrl = req.protocol + "://" + req.get("host");
   const qrUrl =
     "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" +
@@ -175,18 +169,17 @@ app.get("/", async (req, res) => {
 
   res.write("<hr>");
   res.write("<h3>Honlap elérhetősége</h3>");
-  res.write('<img src="' + qrUrl + '" alt="QR kód"><br>');
+  res.write('<img src="' + qrUrl + '" alt="QR code"><br>');
   res.write("<p style='color:#555;'>~10s Server Wake-Up</p>");
   res.write("<p>" + baseUrl + "</p>");
 
   /* ===== ALÁÍRÁS ===== */
-  res.write("<p style='text-align:center;font-size:0.8em;color:#777;margin-top:1em;'>by István Gris</p>");
+  res.write("<p style='text-align:center;font-size:0.8em;color:#777;'>by István Gris</p>");
 
   res.write("</body></html>");
   res.end();
 });
 
 app.listen(port, () =>
-  console.log("Menü szerver fut – QR és heti szekciók helyrehozva")
+  console.log("Menü szerver fut – végleges struktúra megvalósítva")
 );
-``
