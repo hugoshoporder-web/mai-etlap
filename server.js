@@ -5,6 +5,7 @@ const { parse } = require("csv-parse/sync");
 const app = express();
 const port = process.env.PORT || 3000;
 
+// ✅ &amp; → &
 const CSV_URL =
   "https://docs.google.com/spreadsheets/d/1yPZUVn4PvNkGlyXdUedMkCWBa0J1f4Eutl9JwMLHBWE/export?format=csv&sheet=ADATOK";
 
@@ -75,7 +76,6 @@ app.get("/", async (req, res) => {
 
   const today = todayHu();
   const monday = weekMonday(today);
-
   const todayOffset = Math.max(0, today.getDay() - 1);
   const nextOffset = todayOffset + 1;
 
@@ -84,10 +84,10 @@ app.get("/", async (req, res) => {
   res.write("<meta name='viewport' content='width=device-width, initial-scale=1'>");
   res.write("<title>Heti menü</title>");
 
-  /* ===== GOOGLE ANALYTICS (gtag.js) ===== */
+  /* ===== GOOGLE ANALYTICS ===== */
   res.write(`
     <!-- Google tag (gtag.js) -->
-    https://www.googletagmanager.com/gtag/js?id=G-92VX8WYT6W
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-92VX8WYT6W"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
@@ -96,17 +96,15 @@ app.get("/", async (req, res) => {
     </script>
   `);
 
-  /* ===== LISTASŰRÍTÉS + VONAL JEL ===== */
+  /* ===== LISTA STÍLUS ===== */
   res.write(`
     <style>
       ul {
-        margin-top: 0.2em;
-        margin-bottom: 0.4em;
-        padding-left: 1.2em;
         list-style: none;
+        padding-left: 1.2em;
+        margin: 0.2em 0;
       }
       li {
-        margin: 0;
         line-height: 1.2;
       }
       li::before {
@@ -171,7 +169,7 @@ app.get("/", async (req, res) => {
     res.write("</details>");
   }
 
-  /* ===== QR BLOKK – VÁLTOZATLAN ===== */
+  /* ===== QR BLOKK ===== */
   const baseUrl = req.protocol + "://" + req.get("host");
   const qrUrl =
     "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" +
@@ -179,7 +177,7 @@ app.get("/", async (req, res) => {
 
   res.write("<hr>");
   res.write("<h3>Honlap elérhetősége</h3>");
-  res.write(`${qrUrl}<br>`);
+  res.write('<img src="' + qrUrl + '" alt="QR code"><br>');
   res.write("<p style='font-size:0.9em;color:#555;'>A szerver felébredése néhány másodpercet igénybe vehet.</p>");
   res.write("<p>" + baseUrl + "</p>");
 
@@ -191,5 +189,5 @@ app.get("/", async (req, res) => {
 });
 
 app.listen(port, () =>
-  console.log("Menü szerver fut – GA beillesztve")
+  console.log("Menü szerver fut – tiszta alap")
 );
