@@ -84,7 +84,19 @@ app.get("/", async (req, res) => {
   res.write("<meta name='viewport' content='width=device-width, initial-scale=1'>");
   res.write("<title>Heti menü</title>");
 
-  /* === CSAK LISTÁK SŰRÍTÉSE + VONAL JEL === */
+  /* ===== GOOGLE ANALYTICS (gtag.js) ===== */
+  res.write(`
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-92VX8WYT6W"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-92VX8WYT6W');
+    </script>
+  `);
+
+  /* ===== LISTASŰRÍTÉS + VONAL JEL ===== */
   res.write(`
     <style>
       ul {
@@ -136,7 +148,7 @@ app.get("/", async (req, res) => {
     res.write("</details>");
   }
 
-  /* ===== KÖVETKEZŐ HÉT (csak ha van adat) ===== */
+  /* ===== KÖVETKEZŐ HÉT (ha van adat) ===== */
   const nextWeekMonday = new Date(monday);
   nextWeekMonday.setDate(monday.getDate() + 7);
 
@@ -179,5 +191,5 @@ app.get("/", async (req, res) => {
 });
 
 app.listen(port, () =>
-  console.log("Menü szerver fut – végleges verzió")
+  console.log("Menü szerver fut – GA beillesztve")
 );
