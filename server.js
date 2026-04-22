@@ -1,8 +1,6 @@
 const express = require("express");
 const fetch = require("node-fetch");
-const { parse } = require("csv-parse/sync");
-
-const app = express();
+const { parse } = require("csv = express();const { parse } = require("csv-parse/sync");
 const port = process.env.PORT || 3000;
 
 const CSV_URL =
@@ -111,7 +109,10 @@ app.get("/", async (req, res) => {
   const baseUrl = `${req.protocol}://${req.get("host")}`;
 
   res.write(`<!doctype html><html lang="hu"><head>
-<meta charset="utf-8">${style}</head><body>`);
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+${style}
+</head><body>`);
 
   res.write(`<h1>Heti menük</h1><ul>`);
   etteremek.forEach(e => {
@@ -147,7 +148,10 @@ app.get("/etterem/:etterem", async (req, res) => {
   const pageUrl = `${req.protocol}://${req.get("host")}/etterem/${encodeURIComponent(etterem)}`;
 
   res.write(`<!doctype html><html lang="hu"><head>
-<meta charset="utf-8">${style}</head><body>`);
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+${style}
+</head><body>`);
 
   res.write(`<p><a href="/">← Vissza az éttermekhez</a></p>`);
   res.write(`<h1>Heti menü – ${etterem} (${fmt(monday)}. – ${fmt(friday)}.)</h1>`);
@@ -204,5 +208,6 @@ app.get("/etterem/:etterem", async (req, res) => {
 });
 
 app.listen(port, () =>
-  console.log("Menü szerver fut – stabil, korrekt linkekkel és kiemeléssel")
+  console.log("Menü szerver fut – viewport visszatéve, mobil OK")
 );
+
