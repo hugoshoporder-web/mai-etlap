@@ -33,9 +33,7 @@ function weekMonday(d) {
 function renderDay(res, data) {
   for (const tipus in data) {
     res.write(`<strong>${tipus}</strong><ul>`);
-    data[tipus].forEach(e =>
-      res.write(`<li>${e}</li>`)
-    );
+    data[tipus].forEach(e => res.write(`<li>${e}</li>`));
     res.write(`</ul>`);
   }
 }
@@ -44,9 +42,9 @@ function renderDay(res, data) {
 
 async function loadData() {
   const csv = await (await fetch(CSV_URL)).text();
-  const rows = parse(csv, { columns:true, skip_empty_lines:true, trim:true });
-  const map = {};
+  const rows = parse(csv, { columns: true, skip_empty_lines: true, trim: true });
 
+  const map = {};
   rows.forEach(r => {
     if (!r.etterem || !r.datum || !r.etel) return;
     map[r.etterem] ??= {};
@@ -58,66 +56,28 @@ async function loadData() {
   return map;
 }
 
-/* ===== STÍLUS – STABIL + MOBILBARÁT ===== */
+/* ===== MINIMÁLIS, STABIL CSS (ELSŐ MOBIL KINÉZET) ===== */
 
 const style = `
 <style>
 body {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 1em;
-
-  /* alap betű mobilra */
-  font-size: 18px;
-}
-
-h1 {
-  font-size: 1.6em;
-  margin: 0.8em 0 0.4em;
-}
-
-h2 {
-  font-size: 1.4em;
-  margin: 0.7em 0 0.3em;
-}
-
-h3 {
-  font-size: 1.15em;
-  margin: 0.5em 0 0.2em;
-}
-
-details summary {
-  font-size: 1.25em;
-  font-weight: bold;
-  margin-top: 0.8em;
+  font-family: system-ui, sans-serif;
+  margin: 0.8em;
 }
 
 ul {
   list-style: none;
-  padding-left: 1.3em;
-  margin: 0.3em 0 0.8em;
-}
-
-li {
-  line-height: 1.55;
-  overflow-wrap: break-word;
-  word-break: break-word;
+  padding-left: 1.2em;
+  margin: 0.2em 0 0.6em;
 }
 
 li::before {
   content: "– ";
 }
 
-a {
-  text-decoration: none;
-  color: #000;
-}
-
 img {
   max-width: 100%;
   height: auto;
-  margin-top: 0.8em;
 }
 </style>
 `;
@@ -134,13 +94,14 @@ app.get("/", async (req, res) => {
 
   res.write(`<h1>Heti menük</h1><ul>`);
   etteremek.forEach(e => {
-    res.write(`<li><a href="/etterem/${encodeURIComponent(e)}">▶ ${e}</a></li>`);
+    res.write(`<li>▶ ${e}</li>`);
   });
   res.write(`</ul>`);
 
-  const qr = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(baseUrl)}`;
-  res.write(`<img src="${qr}" alt="QR kód">`);
-  res.write(`<p style="font-weight:bold;text-align:center">by István Gris</p>`);
+  const qr =
+    `<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(baseUrl)}">`;
+  res.write(qr);
+  res.write(`<p><strong>by István Gris</strong></p>`);
 
   res.write(`</body></html>`);
   res.end();
@@ -169,7 +130,7 @@ app.get("/etterem/:etterem", async (req, res) => {
   res.write(`<!doctype html><html lang="hu"><head>
 <meta charset="utf-8">${style}</head><body>`);
 
-  res.write(`<p><a href="/">← Vissza az éttermekhez</a></p>`);
+  res.write(`<p>← Vissza az éttermekhez</p>`);
   res.write(`<h1>Heti menü – ${etterem} (${fmt(monday)}. – ${fmt(friday)}.)</h1>`);
 
   if (data[todayIso]) {
@@ -183,9 +144,9 @@ app.get("/etterem/:etterem", async (req, res) => {
   }
 
   const future = [];
-  for (let i=0;i<5;i++){
-    const d=new Date(monday);
-    d.setDate(monday.getDate()+i);
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
     if (data[iso(d)] && d > tomorrow) future.push(d);
   }
 
@@ -198,12 +159,12 @@ app.get("/etterem/:etterem", async (req, res) => {
     res.write(`</details>`);
   }
 
-  const nextWeekMonday=new Date(monday);
-  nextWeekMonday.setDate(monday.getDate()+7);
-  const next=[];
-  for(let i=0;i<5;i++){
-    const d=new Date(nextWeekMonday);
-    d.setDate(nextWeekMonday.getDate()+i);
+  const nextWeekMonday = new Date(monday);
+  nextWeekMonday.setDate(monday.getDate() + 7);
+  const next = [];
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(nextWeekMonday);
+    d.setDate(nextWeekMonday.getDate() + i);
     if (data[iso(d)]) next.push(d);
   }
 
@@ -216,14 +177,16 @@ app.get("/etterem/:etterem", async (req, res) => {
     res.write(`</details>`);
   }
 
-  const qr = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pageUrl)}`;
-  res.write(`<img src="${qr}" alt="QR kód">`);
-  res.write(`<p style="font-weight:bold;text-align:center">by István Gris</p>`);
+  const qr =
+    `<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pageUrl)}">`;
+  res.write(qr);
+  res.write(`<p><strong>by István Gris</strong></p>`);
 
   res.write(`</body></html>`);
   res.end();
 });
 
 app.listen(port, () =>
-  console.log("Menü szerver fut – stabil, MOBILON JÓL OLVASHATÓ")
+  console.log("Menü szerver fut – legelső mobil kinézet visszaállítva")
 );
+``
