@@ -9,7 +9,6 @@ const CSV_URL =
   "https://docs.google.com/spreadsheets/d/1yPZUVn4PvNkGlyXdUedMkCWBa0J1f4Eutl9JwMLHBWE/export?format=csv&sheet=ADATOK";
 
 /* ===== SEGÉD ===== */
-
 const napNevek = ["vasárnap","hétfő","kedd","szerda","csütörtök","péntek","szombat"];
 const honapRovid = ["jan.","febr.","márc.","ápr.","máj.","jún.","júl.","aug.","szept.","okt.","nov.","dec."];
 
@@ -18,142 +17,139 @@ const iso = d => d.toISOString().split("T")[0];
 const fmt = d => `${honapRovid[d.getMonth()]} ${d.getDate()}`;
 
 const todayHu = () =>
-  new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Budapest" }));
+  new Date(new Date().toLocaleString("en-US",{ timeZone:"Europe/Budapest" }));
 
 const weekMonday = d => {
-  const x = new Date(d);
-  const diff = x.getDay() === 0 ? -6 : 1 - x.getDay();
-  x.setDate(x.getDate() + diff);
+  const x=new Date(d);
+  const diff=x.getDay()===0?-6:1-x.getDay();
+  x.setDate(x.getDate()+diff);
   return x;
 };
 
-function renderDay(res, data) {
-  for (const tipus in data) {
+function renderDay(res,data){
+  for(const tipus in data){
     res.write(`<strong>${tipus}</strong><ul>`);
-    data[tipus].forEach(e => res.write(`<li>${e}</li>`));
+    data[tipus].forEach(e=>res.write(`<li>${e}</li>`));
     res.write(`</ul>`);
   }
 }
 
 /* ===== ADATBETÖLTÉS ===== */
+async function loadData(){
+  const csv=await (await fetch(CSV_URL)).text();
+  const rows=parse(csv,{columns:true,skip_empty_lines:true,trim:true});
+  const map={};
 
-async function loadData() {
-  const csv = await (await fetch(CSV_URL)).text();
-  const rows = parse(csv, { columns: true, skip_empty_lines: true, trim: true });
-
-  const map = {};
-
-  rows.forEach(r => {
-    if (!r.etterem || !r.datum || !r.etel) return;
-    const key = r.etterem;
-    map[key] ??= {};
-    map[key][r.datum] ??= {};
-    map[key][r.datum][r.tipus] ??= [];
-    map[key][r.datum][r.tipus].push(r.etel);
+  rows.forEach(r=>{
+    if(!r.etterem||!r.datum||!r.etel) return;
+    map[r.etterem] ??= {};
+    map[r.etterem][r.datum] ??= {};
+    map[r.etterem][r.datum][r.tipus] ??= [];
+    map[r.etterem][r.datum][r.tipus].push(r.etel);
   });
-
   return map;
 }
 
-/* ===== STÍLUS ===== */
-
+/* ===== CSS ===== */
 const style = `
 <style>
-body { font-family: system-ui, sans-serif }
-h1,h2 { font-size:1.4em }
-ul { list-style:none; padding-left:1.2em; margin:0.2em 0 0.4em }
-li { line-height:1.2 }
-li::before { content:"– " }
-.divider { border:none;border-top:1px solid #999;margin:0.6em 0 }
-a { text-decoration:none;color:#000 }
+body{font-family:system-ui,sans-serif}
+h1,h2{font-size:1.4em}
+ul{list-style:none;padding-left:1.2em;margin:0.2em 0 0.4em}
+li{line-height:1.2}
+li::before{content:"– "}
+.divider{border:none;border-top:1px solid #999;margin:0.6em 0}
+a{text-decoration:none;color:#000}
 </style>
 `;
 
+/* ===== FŐOLDAL ===== */
+app.get("/", async (req,res)=>{
+  const db=await loadData();
+  const etteremek=Object.keys(db).sort((a,b)=>a.localeCompare(b,"hu"));
+  const baseUrl=`${req.protocol}://${req.get("host")}`;
+
+  res.write(`<!doctype html><html><head><meta charset=utf-8>${style}</head><body>`);
+  res.write(`<h1>Heti menük</h1><ul>`);
+  etteremek.forEach(e=>{
+    res.write(`<li>/etterem/${e}▶ ${e}</a></li>`);
+  });
+  res.write(`</ul><hr>`);
+
+  const qr=`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(baseUrl)}`;
+  res.write(`${qr}<p style="font-weight:bold;text-align:center">by István Gris</p>`);
+  res.write(`</body></html>`);
+  res.end();
+});
+
 /* ===== ÉTTEREM OLDAL ===== */
+app.get("/etterem/:etterem", async (req,res)=>{
+  const db=await loadData();
+  const etterem=req.params.etterem;
+  const data=db[etterem];
+  if(!data) return res.status(404).send("Nincs ilyen étterem.");
 
-app.get("/etterem/:etterem", async (req, res) => {
-  const db = await loadData();
-  const etterem = req.params.etterem;
-  const data = db[etterem];
+  const today=todayHu();
+  const monday=weekMonday(today);
+  const friday=new Date(monday); friday.setDate(monday.getDate()+4);
 
-  if (!data) {
-    return res.status(404).send("Nincs ilyen étterem.");
-  }
+  const todayIso=iso(today);
+  const tomorrow=new Date(today); tomorrow.setDate(today.getDate()+1);
+  const tomorrowIso=iso(tomorrow);
 
-  const today = todayHu();
-  const monday = weekMonday(today);
-  const friday = new Date(monday); friday.setDate(monday.getDate() + 4);
+  const baseUrl=`${req.protocol}://${req.get("host")}`;
+  const pageUrl=`${baseUrl}/etterem/${etterem}`;
 
-  const todayIso = iso(today);
-  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
-  const tomorrowIso = iso(tomorrow);
-
-  const baseUrl = `${req.protocol}://${req.get("host")}`;
-  const pageUrl = `${baseUrl}/etterem/${etterem}`;
-
-  res.write(`<!doctype html><html lang="hu"><head>
-<meta charset="utf-8">${style}</head><body>`);
-
-  /* VISSZALINK */
-  res.write(`<p><a href="/">← Vissza az éttermekhez</a></p>`);
-
+  res.write(`<!doctype html><html><head><meta charset=utf-8>${style}</head><body>`);
+  res.write(`<a href="/">&larr; Vissza az éttermekhez</a>`);
   res.write(`<h1>Heti menü – ${etterem} (${fmt(monday)}. – ${fmt(friday)}.)</h1>`);
 
-  /* MAI NAP */
-  if (data[todayIso]) {
+  if(data[todayIso]){
     res.write(`<hr class="divider"><h2>Mai nap – ${capitalize(napNevek[today.getDay()])} ${fmt(today)}</h2>`);
-    renderDay(res, data[todayIso]);
+    renderDay(res,data[todayIso]);
   }
 
-  /* KÖVETKEZŐ NAP */
-  if (data[tomorrowIso]) {
+  if(data[tomorrowIso]){
     res.write(`<hr class="divider"><h2>Következő nap – ${capitalize(napNevek[tomorrow.getDay()])} ${fmt(tomorrow)}</h2>`);
-    renderDay(res, data[tomorrowIso]);
+    renderDay(res,data[tomorrowIso]);
   }
 
-  /* AKTUÁLIS HÉT TOVÁBBI NAPJAI */
-  const futureDays = [];
-  for (let i = 0; i < 5; i++) {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    if (data[iso(d)] && d > tomorrow) futureDays.push(d);
+  const future=[];
+  for(let i=0;i<5;i++){
+    const d=new Date(monday); d.setDate(monday.getDate()+i);
+    if(data[iso(d)] && d>tomorrow) future.push(d);
   }
 
-  if (futureDays.length) {
+  if(future.length){
     res.write(`<hr class="divider"><details open><summary>Aktuális hét további napjai</summary>`);
-    futureDays.forEach(d => {
+    future.forEach(d=>{
       res.write(`<h3>${capitalize(napNevek[d.getDay()])} ${fmt(d)}</h3>`);
-      renderDay(res, data[iso(d)]);
+      renderDay(res,data[iso(d)]);
     });
     res.write(`</details>`);
   }
 
-  /* KÖVETKEZŐ HÉT */
-  const nextWeekMonday = new Date(monday); nextWeekMonday.setDate(monday.getDate() + 7);
-  const nextWeekDays = [];
-
-  for (let i = 0; i < 5; i++) {
-    const d = new Date(nextWeekMonday);
-    d.setDate(nextWeekMonday.getDate() + i);
-    if (data[iso(d)]) nextWeekDays.push(d);
+  const nextWeekMonday=new Date(monday); nextWeekMonday.setDate(monday.getDate()+7);
+  const next=[];
+  for(let i=0;i<5;i++){
+    const d=new Date(nextWeekMonday); d.setDate(nextWeekMonday.getDate()+i);
+    if(data[iso(d)]) next.push(d);
   }
 
-  if (nextWeekDays.length) {
+  if(next.length){
     res.write(`<details><summary>Következő hét</summary>`);
-    nextWeekDays.forEach(d => {
+    next.forEach(d=>{
       res.write(`<h3>${capitalize(napNevek[d.getDay()])} ${fmt(d)}</h3>`);
-      renderDay(res, data[iso(d)]);
+      renderDay(res,data[iso(d)]);
     });
     res.write(`</details>`);
   }
 
-  /* QR */
-  const qr = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pageUrl)}`;
-  res.write(`<hr><img src="${qr}" alt="QR"><p>${pageUrl}</p><p>~10s Server Wake-Up</p>
-  <p style="font-weight:bold;text-align:center">by István Gris</p>`);
+  const qr=`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pageUrl)}`;
+  res.write(`<hr>${qr}<p>${pageUrl}</p><p style="font-weight:bold;text-align:center">by István Gris</p>`);
 
   res.write(`</body></html>`);
   res.end();
 });
 
-app.listen(port, () => console.log("Menü szerver fut – visszalink + heti szekciók rendben"));
+app.listen(port,()=>console.log("Menü szerver fut – főoldal + étteremoldal kész"));
