@@ -56,22 +56,49 @@ async function loadData() {
   return map;
 }
 
-/* ===== STÍLUS ===== */
+/* ===== STÍLUS – MINIMÁLIS, MOBILBARÁT ===== */
 
 const style = `
 <style>
-body { font-family: system-ui, sans-serif; margin: 1em; }
-ul { list-style:none; padding-left:1.2em; margin:0.3em 0 0.8em; }
-li::before { content:"– "; }
-img { max-width:100%; height:auto; }
-.section-title {
-  display:flex; align-items:center; gap:0.5em; margin:0.8em 0 0.4em;
+body {
+  font-family: system-ui, sans-serif;
+  margin: 1em;
 }
+
+ul {
+  list-style: none;
+  padding-left: 1.2em;
+  margin: 0.3em 0 0.8em;
+}
+
+li::before {
+  content: "– ";
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin: 0.8em 0 0.4em;
+}
+
 .section-title::before,
 .section-title::after {
-  content:""; flex:1; height:1px; background:#999;
+  content: "";
+  height: 1px;
+  background: #999;
+  flex: 1;
 }
-.section-title span { white-space:nowrap; font-weight:bold; }
+
+.section-title span {
+  white-space: nowrap;
+  font-weight: bold;
+}
 </style>
 `;
 
@@ -111,10 +138,12 @@ app.get("/etterem/:etterem", async (req, res) => {
 
   const today = todayHu();
   const monday = weekMonday(today);
-  const friday = new Date(monday); friday.setDate(monday.getDate() + 4);
+  const friday = new Date(monday);
+  friday.setDate(monday.getDate() + 4);
 
   const todayIso = iso(today);
-  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
   const tomorrowIso = iso(tomorrow);
 
   const pageUrl = `${req.protocol}://${req.get("host")}/etterem/${encodeURIComponent(etterem)}`;
@@ -125,7 +154,7 @@ app.get("/etterem/:etterem", async (req, res) => {
 ${style}
 </head><body>`);
 
-  /* ✅ EZ AZ AZ EGY SOR, AMI KELLETT */
+  /* VISSZA LINK – JAVÍTVA */
   res.write(`<p><a href="/">← Vissza az éttermekhez</a></p>`);
 
   res.write(`<h1>Heti menü – ${etterem} (${fmt(monday)}. – ${fmt(friday)}.)</h1>`);
@@ -140,6 +169,43 @@ ${style}
     renderDay(res, data[tomorrowIso]);
   }
 
+  /* AKTUÁLIS HÉT TOVÁBBI NAPJAI */
+  const future = [];
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    if (data[iso(d)] && d > tomorrow) future.push(d);
+  }
+
+  if (future.length) {
+    res.write(`<details><summary>Aktuális hét további napjai</summary>`);
+    future.forEach(d => {
+      res.write(`<h3>${capitalize(napNevek[d.getDay()])} ${fmt(d)}</h3>`);
+      renderDay(res, data[iso(d)]);
+    });
+    res.write(`</details>`);
+  }
+
+  /* KÖVETKEZŐ HÉT */
+  const nextWeekMonday = new Date(monday);
+  nextWeekMonday.setDate(monday.getDate() + 7);
+  const next = [];
+
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(nextWeekMonday);
+    d.setDate(nextWeekMonday.getDate() + i);
+    if (data[iso(d)]) next.push(d);
+  }
+
+  if (next.length) {
+    res.write(`<details><summary>Következő hét</summary>`);
+    next.forEach(d => {
+      res.write(`<h3>${capitalize(napNevek[d.getDay()])} ${fmt(d)}</h3>`);
+      renderDay(res, data[iso(d)]);
+    });
+    res.write(`</details>`);
+  }
+
   res.write(`<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pageUrl)}">`);
   res.write(`<p><strong>by István Gris</strong></p>`);
 
@@ -148,6 +214,6 @@ ${style}
 });
 
 app.listen(port, () =>
-  console.log("Menü szerver fut – teljesen javítva")
+  console.log("Menü szerver fut – összerakva, stabil verzió")
 );
 ``
