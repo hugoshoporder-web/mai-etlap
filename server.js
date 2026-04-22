@@ -17,6 +17,14 @@ function capitalize(s) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+function normalizeSlug(s) {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, "");
+}
+
 function todayHu() {
   return new Date(
     new Date().toLocaleString("en-US", { timeZone: "Europe/Budapest" })
@@ -35,33 +43,99 @@ function iso(d) {
 }
 
 function formatHuDate(d) {
-  return honapRovid[d.getMonth()] + " " + d.getDate();
+  return `${honapRovid[d.getMonth()]} ${d.getDate()}.`;
 }
 
-function renderDay(res, d) {
-  for (const tipus in d) {
+function renderDay(res, data) {
+  for (const tipus in data) {
     res.write("<strong>" + tipus + "</strong><ul>");
-    d[tipus].forEach(e => res.write("<li>" + e + "</li>"));
+    data[tipus].forEach(e => res.write("<li>" + e + "</li>"));
     res.write("</ul>");
   }
 }
 
-/* ===== ROUTE ===== */
+/* ===== ADAT BETÖLTÉS ===== */
 
-app.get("/", async (req, res) => {
+async function loadData() {
   const csv = await (await fetch(CSV_URL)).text();
   const rows = parse(csv, { columns: true, skip_empty_lines: true, trim: true });
 
-  const dataByDate = {};
-  let etteremNev = "";
-
+  const byRestaurant = {};
   rows.forEach(r => {
-    if (!r.datum || !r.etel) return;
-    etteremNev = r.etterem;
-    dataByDate[r.datum] ??= {};
-    dataByDate[r.datum][r.tipus] ??= [];
-    dataByDate[r.datum][r.tipus].push(r.etel);
+    if (!r.etterem || !r.datum || !r.etel) return;
+
+    const slug = normalizeSlug(r.etterem);
+
+    byRestaurant[slug] ??= {
+      name: r.etterem,
+      data: {}
+    };
+
+    byRestaurant[slug].data[r.datum] ??= {};
+    byRestaurant[slug].data[r.datum][r.tipus] ??= [];
+    byRestaurant[slug].data[r.datum][r.tipus].push(r.etel);
   });
+
+  return byRestaurant;
+}
+
+/* ===== FŐOLDAL ===== */
+
+app.get("/", async (req, res) => {
+  const restaurants = await loadData();
+
+  const list = Object.values(restaurants)
+    .map(r => ({ name: r.name, slug: normalizeSlug(r.name) }))
+    .sort((a, b) => a.name.localeCompare(b.name, "hu"));
+
+  const baseUrl = req.protocol + "://" + req.get("host");
+
+  res.write("<!DOCTYPE html><html lang='hu'><head>");
+  res.write("<meta charset='UTF-8'>");
+  res.write("<meta name='viewport' content='width=device-width, initial-scale=1'>");
+  res.write("<title>Heti menük</title>");
+  res.write(`
+    <style>
+      body { font-family: system-ui, sans-serif; }
+      ul { list-style:none; padding-left:0; }
+      li { margin:0.5em 0; font-size:1.2em; }
+      a { text-decoration:none; color:#000; }
+    </style>
+  `);
+  res.write("</head><body>");
+
+  res.write("<h1>Heti menük</h1>");
+  res.write("<p>Válassz éttermet:</p><ul>");
+
+  list.forEach(r => {
+    res.write(`<li><a href="/etterem/${r.slug}">▶ ${r.name}</a></li>`);
+  });
+
+  res.write("</ul><hr>");
+
+  const qrUrl =
+    "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" +
+    encodeURIComponent(baseUrl);
+
+  res.write(`<img src="${qrUrl}"><p>${baseUrl}</p>`);
+  res.write("<p style='font-weight:bold;text-align:center;'>by István Gris</p>");
+
+  res.write("</body></html>");
+  res.end();
+});
+
+/* ===== ÉTTEREM OLDAL ===== */
+
+app.get("/etterem/:slug", async (req, res) => {
+  const restaurants = await loadData();
+  const entry = restaurants[req.params.slug];
+  if (!entry) {
+    res.status(404).send("Nincs ilyen étterem.");
+    return;
+  }
+
+  const data = entry.data;
+  const name = entry.name;
 
   const today = todayHu();
   const monday = weekMonday(today);
@@ -73,107 +147,89 @@ app.get("/", async (req, res) => {
   tomorrow.setDate(today.getDate() + 1);
   const tomorrowIso = iso(tomorrow);
 
+  const baseUrl = req.protocol + "://" + req.get("host");
+  const pageUrl = `${baseUrl}/etterem/${req.params.slug}`;
+
   res.write("<!DOCTYPE html><html lang='hu'><head>");
   res.write("<meta charset='UTF-8'>");
   res.write("<meta name='viewport' content='width=device-width, initial-scale=1'>");
-  res.write("<title>Heti menü</title>");
-
-  /* Lista stílus */
+  res.write(`<title>Heti menü – ${name}</title>`);
   res.write(`
     <style>
-      ul { list-style:none; padding-left:1.2em; margin:0.2em 0; }
-      li { line-height:1.2; }
+      body { font-family: system-ui, sans-serif; }
+      ul { list-style:none; padding-left:1.2em; }
       li::before { content:"– "; }
+      a { text-decoration:none; }
     </style>
   `);
-
   res.write("</head><body>");
 
-  /* ===== FEJLÉC ===== */
-  res.write(
-    `<h1>Heti menü – ${etteremNev} (${formatHuDate(monday)}–${formatHuDate(friday)}.)</h1>`
-  );
+  res.write(`<p><a href="/">← Vissza az éttermekhez</a></p>`);
+  res.write(`<h1>Heti menü – ${name} (${formatHuDate(monday)} – ${formatHuDate(friday)})</h1>`);
 
-  /* ===== MAI NAP ===== */
-  if (dataByDate[todayIso]) {
+  if (data[todayIso]) {
     res.write(`<h2>Mai nap – (${formatHuDate(today)})</h2>`);
-    renderDay(res, dataByDate[todayIso]);
+    renderDay(res, data[todayIso]);
   }
 
-  /* ===== KÖVETKEZŐ NAP ===== */
-  if (dataByDate[tomorrowIso]) {
+  if (data[tomorrowIso]) {
     res.write(`<h2>Következő nap – (${formatHuDate(tomorrow)})</h2>`);
-    renderDay(res, dataByDate[tomorrowIso]);
+    renderDay(res, data[tomorrowIso]);
   }
 
-  /* ===== AKTUÁLIS HÉT TOVÁBBI NAPJAI ===== */
-  const extraCurrentWeek = [];
-
+  const extraDays = [];
   for (let i = 0; i < 5; i++) {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
     const key = iso(d);
-    if (
-      dataByDate[key] &&
-      key !== todayIso &&
-      key !== tomorrowIso &&
-      d > tomorrow
-    ) {
-      extraCurrentWeek.push({ date: d, data: dataByDate[key] });
+    if (data[key] && d > tomorrow) {
+      extraDays.push(d);
     }
   }
 
-  if (extraCurrentWeek.length) {
+  if (extraDays.length) {
     res.write("<details><summary>Aktuális hét további napjai</summary>");
-    extraCurrentWeek.forEach(item => {
-      res.write(`<h3>${capitalize(napNevek[item.date.getDay()])} – (${formatHuDate(item.date)})</h3>`);
-      renderDay(res, item.data);
+    extraDays.forEach(d => {
+      res.write(`<h3>${capitalize(napNevek[d.getDay()])} – (${formatHuDate(d)})</h3>`);
+      renderDay(res, data[iso(d)]);
     });
     res.write("</details>");
   }
 
-  /* ===== KÖVETKEZŐ HÉT ===== */
   const nextWeekMonday = new Date(monday);
   nextWeekMonday.setDate(monday.getDate() + 7);
-  const nextWeekData = [];
+  const nextWeekDays = [];
 
   for (let i = 0; i < 5; i++) {
     const d = new Date(nextWeekMonday);
     d.setDate(nextWeekMonday.getDate() + i);
-    const key = iso(d);
-    if (dataByDate[key]) {
-      nextWeekData.push({ date: d, data: dataByDate[key] });
-    }
+    if (data[iso(d)]) nextWeekDays.push(d);
   }
 
-  if (nextWeekData.length) {
+  if (nextWeekDays.length) {
     res.write("<details><summary>Következő hét</summary>");
-    nextWeekData.forEach(item => {
-      res.write(`<h3>${capitalize(napNevek[item.date.getDay()])} – (${formatHuDate(item.date)})</h3>`);
-      renderDay(res, item.data);
+    nextWeekDays.forEach(d => {
+      res.write(`<h3>${capitalize(napNevek[d.getDay()])} – (${formatHuDate(d)})</h3>`);
+      renderDay(res, data[iso(d)]);
     });
     res.write("</details>");
   }
 
-  /* ===== QR BLOKK ===== */
-  const baseUrl = req.protocol + "://" + req.get("host");
   const qrUrl =
     "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" +
-    encodeURIComponent(baseUrl);
+    encodeURIComponent(pageUrl);
 
-  res.write("<hr>");
-  res.write("<h3>Honlap elérhetősége</h3>");
-  res.write(`<img src="${qrUrl}" alt="QR kód"><br>`);
+  res.write(`<hr><img src="${qrUrl}"><p>${pageUrl}</p>`);
   res.write("<p>~10s Server Wake-Up</p>");
-  res.write("<p>" + baseUrl + "</p>");
-
-  /* ===== ALÁÍRÁS ===== */
-  res.write("<p style='text-align:center;font-weight:bold;'>by István Gris</p>");
+  res.write("<p style='font-weight:bold;text-align:center;'>by István Gris</p>");
 
   res.write("</body></html>");
   res.end();
 });
 
-app.listen(port, () =>
-  console.log("Menü szerver fut – végleges, jóváhagyott formátumban")
-);
+/* ===== INDÍTÁS ===== */
+
+app.listen(port, () => {
+  console.log("Menü szerver fut – több éttermes verzió");
+});
+``
