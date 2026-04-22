@@ -8,134 +8,95 @@ const port = process.env.PORT || 3000;
 const CSV_URL =
   "https://docs.google.com/spreadsheets/d/1yPZUVn4PvNkGlyXdUedMkCWBa0J1f4Eutl9JwMLHBWE/export?format=csv&sheet=ADATOK";
 
-/* ===== SEGÉDFÜGGVÉNYEK ===== */
+/* ===== SEGÉD ===== */
 
 const napNevek = ["vasárnap","hétfő","kedd","szerda","csütörtök","péntek","szombat"];
 const honapRovid = ["jan.","febr.","márc.","ápr.","máj.","jún.","júl.","aug.","szept.","okt.","nov.","dec."];
 
-function capitalize(s) {
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
+const capitalize = s => s.charAt(0).toUpperCase() + s.slice(1);
+const iso = d => d.toISOString().split("T")[0];
+const fmt = d => `${honapRovid[d.getMonth()]} ${d.getDate()}`;
 
-function normalizeSlug(s) {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\s+/g, "");
-}
+const todayHu = () =>
+  new Date(new Date().toLocaleString("en-US",{timeZone:"Europe/Budapest"}));
 
-function todayHu() {
-  return new Date(
-    new Date().toLocaleString("en-US", { timeZone: "Europe/Budapest" })
-  );
-}
-
-function weekMonday(date) {
-  const d = new Date(date);
-  const diff = d.getDay() === 0 ? -6 : 1 - d.getDay();
-  d.setDate(d.getDate() + diff);
-  return d;
-}
-
-function iso(d) {
-  return d.toISOString().split("T")[0];
-}
-
-function formatHuDate(d) {
-  return `${honapRovid[d.getMonth()]} ${d.getDate()}.`;
-}
+const weekMonday = d => {
+  const x = new Date(d);
+  const diff = x.getDay() === 0 ? -6 : 1 - x.getDay();
+  x.setDate(x.getDate() + diff);
+  return x;
+};
 
 function renderDay(res, data) {
   for (const tipus in data) {
-    res.write("<strong>" + tipus + "</strong><ul>");
-    data[tipus].forEach(e => res.write("<li>" + e + "</li>"));
-    res.write("</ul>");
+    res.write(`<strong>${tipus}</strong><ul>`);
+    data[tipus].forEach(e => res.write(`<li>${e}</li>`));
+    res.write(`</ul>`);
   }
 }
 
-/* ===== ADAT BETÖLTÉS ===== */
+/* ===== ADATBETÖLTÉS ===== */
 
 async function loadData() {
   const csv = await (await fetch(CSV_URL)).text();
-  const rows = parse(csv, { columns: true, skip_empty_lines: true, trim: true });
+  const rows = parse(csv, { columns:true, skip_empty_lines:true, trim:true });
+  const map = {};
 
-  const byRestaurant = {};
   rows.forEach(r => {
     if (!r.etterem || !r.datum || !r.etel) return;
-
-    const slug = normalizeSlug(r.etterem);
-
-    byRestaurant[slug] ??= {
-      name: r.etterem,
-      data: {}
-    };
-
-    byRestaurant[slug].data[r.datum] ??= {};
-    byRestaurant[slug].data[r.datum][r.tipus] ??= [];
-    byRestaurant[slug].data[r.datum][r.tipus].push(r.etel);
+    map[r.etterem] ??= {};
+    map[r.etterem][r.datum] ??= {};
+    map[r.etterem][r.datum][r.tipus] ??= [];
+    map[r.etterem][r.datum][r.tipus].push(r.etel);
   });
 
-  return byRestaurant;
+  return map;
 }
+
+/* ===== CSS ===== */
+
+const style = `
+<style>
+body { font-family: system-ui, sans-serif; }
+h1,h2 { font-size:1.4em; }
+ul { list-style:none; padding-left:1.2em; margin:0.2em 0 0.4em; }
+li { line-height:1.2; }
+li::before { content:"– "; }
+a { text-decoration:none; color:#000; }
+</style>
+`;
 
 /* ===== FŐOLDAL ===== */
 
-app.get("/", async (req, res) => {
-  const restaurants = await loadData();
+app.get("/", async (req,res)=>{
+  const db = await loadData();
+  const etteremek = Object.keys(db).sort((a,b)=>a.localeCompare(b,"hu"));
+  const baseUrl = `${req.protocol}://${req.get("host")}`;
 
-  const list = Object.values(restaurants)
-    .map(r => ({ name: r.name, slug: normalizeSlug(r.name) }))
-    .sort((a, b) => a.name.localeCompare(b.name, "hu"));
+  res.write(`<!doctype html><html><head><meta charset=utf-8>${style}</head><body>`);
 
-  const baseUrl = req.protocol + "://" + req.get("host");
-
-  res.write("<!DOCTYPE html><html lang='hu'><head>");
-  res.write("<meta charset='UTF-8'>");
-  res.write("<meta name='viewport' content='width=device-width, initial-scale=1'>");
-  res.write("<title>Heti menük</title>");
-  res.write(`
-    <style>
-      body { font-family: system-ui, sans-serif; }
-      ul { list-style:none; padding-left:0; }
-      li { margin:0.5em 0; font-size:1.2em; }
-      a { text-decoration:none; color:#000; }
-    </style>
-  `);
-  res.write("</head><body>");
-
-  res.write("<h1>Heti menük</h1>");
-  res.write("<p>Válassz éttermet:</p><ul>");
-
-  list.forEach(r => {
-    res.write(`<li>/etterem/${r.slug}▶ ${r.name}</a></li>`);
+  res.write(`<h1>Heti menük</h1><ul>`);
+  etteremek.forEach(e => {
+    res.write(`<li><a href="/etterem/${encodeURIComponent(e)}">▶ ${e}</a></li>`);
   });
+  res.write(`</ul><hr>`);
 
-  res.write("</ul><hr>");
+  res.write(`
+    <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(baseUrl)}" alt="QR">
+    <p style="font-weight:bold;text-align:center">by István Gris</p>
+  `);
 
-  const qrUrl =
-    "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" +
-    encodeURIComponent(baseUrl);
-
-  res.write(`${qrUrl}<p>${baseUrl}</p>`);
-  res.write("<p style='font-weight:bold;text-align:center;'>by István Gris</p>");
-
-  res.write("</body></html>");
+  res.write(`</body></html>`);
   res.end();
 });
 
 /* ===== ÉTTEREM OLDAL ===== */
 
-app.get("/etterem/:slug", async (req, res) => {
-  const restaurants = await loadData();
-  const entry = restaurants[req.params.slug];
-  if (!entry) {
-    res.status(404).send("Nincs ilyen étterem.");
-    return;
-  }
-
-  const data = entry.data;
-  const name = entry.name;
+app.get("/etterem/:etterem", async (req,res)=>{
+  const db = await loadData();
+  const etterem = req.params.etterem;
+  const data = db[etterem];
+  if (!data) return res.status(404).send("Nincs ilyen étterem.");
 
   const today = todayHu();
   const monday = weekMonday(today);
@@ -147,88 +108,67 @@ app.get("/etterem/:slug", async (req, res) => {
   tomorrow.setDate(today.getDate() + 1);
   const tomorrowIso = iso(tomorrow);
 
-  const baseUrl = req.protocol + "://" + req.get("host");
-  const pageUrl = `${baseUrl}/etterem/${req.params.slug}`;
+  const baseUrl = `${req.protocol}://${req.get("host")}`;
+  const pageUrl = `${baseUrl}/etterem/${etterem}`;
 
-  res.write("<!DOCTYPE html><html lang='hu'><head>");
-  res.write("<meta charset='UTF-8'>");
-  res.write("<meta name='viewport' content='width=device-width, initial-scale=1'>");
-  res.write(`<title>Heti menü – ${name}</title>`);
-  res.write(`
-    <style>
-      body { font-family: system-ui, sans-serif; }
-      ul { list-style:none; padding-left:1.2em; }
-      li::before { content:"– "; }
-      a { text-decoration:none; }
-    </style>
-  `);
-  res.write("</head><body>");
+  res.write(`<!doctype html><html><head><meta charset=utf-8>${style}</head><body>`);
 
-  res.write(`<p>/</p>`);
-  res.write(`<h1>Heti menü – ${name} (${formatHuDate(monday)} – ${formatHuDate(friday)})</h1>`);
+  res.write(`<p><a href="/">← Vissza az éttermekhez</a></p>`);
+  res.write(`<h1>Heti menü – ${etterem} (${fmt(monday)}. – ${fmt(friday)}.)</h1>`);
 
   if (data[todayIso]) {
-    res.write(`<h2>Mai nap – (${formatHuDate(today)})</h2>`);
+    res.write(`<h2>Mai nap – ${capitalize(napNevek[today.getDay()])} ${fmt(today)}</h2>`);
     renderDay(res, data[todayIso]);
   }
 
   if (data[tomorrowIso]) {
-    res.write(`<h2>Következő nap – (${formatHuDate(tomorrow)})</h2>`);
+    res.write(`<h2>Következő nap – ${capitalize(napNevek[tomorrow.getDay()])} ${fmt(tomorrow)}</h2>`);
     renderDay(res, data[tomorrowIso]);
   }
 
-  const extraDays = [];
-  for (let i = 0; i < 5; i++) {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    const key = iso(d);
-    if (data[key] && d > tomorrow) {
-      extraDays.push(d);
-    }
+  const future=[];
+  for(let i=0;i<5;i++){
+    const d=new Date(monday);
+    d.setDate(monday.getDate()+i);
+    if(data[iso(d)] && d>tomorrow) future.push(d);
   }
 
-  if (extraDays.length) {
-    res.write("<details><summary>Aktuális hét további napjai</summary>");
-    extraDays.forEach(d => {
-      res.write(`<h3>${capitalize(napNevek[d.getDay()])} – (${formatHuDate(d)})</h3>`);
+  if(future.length){
+    res.write(`<details open><summary>Aktuális hét további napjai</summary>`);
+    future.forEach(d=>{
+      res.write(`<h3>${capitalize(napNevek[d.getDay()])} ${fmt(d)}</h3>`);
       renderDay(res, data[iso(d)]);
     });
-    res.write("</details>");
+    res.write(`</details>`);
   }
 
-  const nextWeekMonday = new Date(monday);
-  nextWeekMonday.setDate(monday.getDate() + 7);
-  const nextWeekDays = [];
-
-  for (let i = 0; i < 5; i++) {
-    const d = new Date(nextWeekMonday);
-    d.setDate(nextWeekMonday.getDate() + i);
-    if (data[iso(d)]) nextWeekDays.push(d);
+  const nextWeekMonday=new Date(monday);
+  nextWeekMonday.setDate(monday.getDate()+7);
+  const next=[];
+  for(let i=0;i<5;i++){
+    const d=new Date(nextWeekMonday);
+    d.setDate(nextWeekMonday.getDate()+i);
+    if(data[iso(d)]) next.push(d);
   }
 
-  if (nextWeekDays.length) {
-    res.write("<details><summary>Következő hét</summary>");
-    nextWeekDays.forEach(d => {
-      res.write(`<h3>${capitalize(napNevek[d.getDay()])} – (${formatHuDate(d)})</h3>`);
+  if(next.length){
+    res.write(`<details><summary>Következő hét</summary>`);
+    next.forEach(d=>{
+      res.write(`<h3>${capitalize(napNevek[d.getDay()])} ${fmt(d)}</h3>`);
       renderDay(res, data[iso(d)]);
     });
-    res.write("</details>");
+    res.write(`</details>`);
   }
 
-  const qrUrl =
-    "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" +
-    encodeURIComponent(pageUrl);
+  res.write(`
+    <hr>
+    <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pageUrl)}" alt="QR">
+    <p style="font-weight:bold;text-align:center">by István Gris</p>
+  `);
 
-  res.write(`<hr>${qrUrl}<p>${pageUrl}</p>`);
-  res.write("<p>~10s Server Wake-Up</p>");
-  res.write("<p style='font-weight:bold;text-align:center;'>by István Gris</p>");
-
-  res.write("</body></html>");
+  res.write(`</body></html>`);
   res.end();
 });
 
-/* ===== INDÍTÁS ===== */
-
-app.listen(port, () => {
-  console.log("Menü szerver fut – több éttermes verzió");
-});
+app.listen(port,()=>console.log("Menü szerver fut – linkek és QR rendben"));
+``
