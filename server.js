@@ -58,35 +58,49 @@ async function loadData() {
   return map;
 }
 
-/* ===== STÍLUS (STABIL, MOBIL-FIRST) ===== */
+/* ===== STÍLUS – STABIL + MOBILBARÁT ===== */
 
 const style = `
 <style>
 body {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  max-width: 720px;       /* mobil + tablet barát */
+  max-width: 720px;
   margin: 0 auto;
-  padding: 0.8em;
+  padding: 1em;
+
+  /* alap betű mobilra */
+  font-size: 18px;
 }
 
-h1, h2 {
-  font-size: 1.25em;
-  margin: 0.6em 0 0.3em;
+h1 {
+  font-size: 1.6em;
+  margin: 0.8em 0 0.4em;
+}
+
+h2 {
+  font-size: 1.4em;
+  margin: 0.7em 0 0.3em;
+}
+
+h3 {
+  font-size: 1.15em;
+  margin: 0.5em 0 0.2em;
 }
 
 details summary {
+  font-size: 1.25em;
   font-weight: bold;
-  margin-top: 0.6em;
+  margin-top: 0.8em;
 }
 
 ul {
   list-style: none;
-  padding-left: 1.2em;
-  margin: 0.15em 0 0.5em;
+  padding-left: 1.3em;
+  margin: 0.3em 0 0.8em;
 }
 
 li {
-  line-height: 1.35;
+  line-height: 1.55;
   overflow-wrap: break-word;
   word-break: break-word;
 }
@@ -103,6 +117,7 @@ a {
 img {
   max-width: 100%;
   height: auto;
+  margin-top: 0.8em;
 }
 </style>
 `;
@@ -124,7 +139,7 @@ app.get("/", async (req, res) => {
   res.write(`</ul>`);
 
   const qr = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(baseUrl)}`;
-  res.write(`<p><img src="${qr}" alt="QR"></p>`);
+  res.write(`<img src="${qr}" alt="QR kód">`);
   res.write(`<p style="font-weight:bold;text-align:center">by István Gris</p>`);
 
   res.write(`</body></html>`);
@@ -202,7 +217,7 @@ app.get("/etterem/:etterem", async (req, res) => {
   }
 
   const qr = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pageUrl)}`;
-  res.write(`<p><img src="${qr}" alt="QR"></p>`);
+  res.write(`<img src="${qr}" alt="QR kód">`);
   res.write(`<p style="font-weight:bold;text-align:center">by István Gris</p>`);
 
   res.write(`</body></html>`);
@@ -210,5 +225,5 @@ app.get("/etterem/:etterem", async (req, res) => {
 });
 
 app.listen(port, () =>
-  console.log("Menü szerver fut – stabil mobil-optimalizált verzió")
+  console.log("Menü szerver fut – stabil, MOBILON JÓL OLVASHATÓ")
 );
