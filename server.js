@@ -1,5 +1,6 @@
 const express = require("express");
-const fetchconst { parse } = require("csv-parse/sync");const fetch = require("node-fetch");
+const fetch = require("node-fetch");
+const { parse } = require("csv-parse/sync");
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -110,8 +111,7 @@ app.get("/", async (req, res) => {
   const baseUrl = `${req.protocol}://${req.get("host")}`;
 
   res.write(`<!doctype html><html lang="hu"><head>
-<meta charset="utf-8">
-${style}</head><body>`);
+<meta charset="utf-8">${style}</head><body>`);
 
   res.write(`<h1>Heti menük</h1><ul>`);
   etteremek.forEach(e => {
@@ -119,9 +119,7 @@ ${style}</head><body>`);
   });
   res.write(`</ul>`);
 
-  res.write(
-    `<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(baseUrl)}">`
-  );
+  res.write(`<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(baseUrl)}">`);
   res.write(`<p><strong>by István Gris</strong></p>`);
 
   res.write(`</body></html>`);
@@ -149,12 +147,9 @@ app.get("/etterem/:etterem", async (req, res) => {
   const pageUrl = `${req.protocol}://${req.get("host")}/etterem/${encodeURIComponent(etterem)}`;
 
   res.write(`<!doctype html><html lang="hu"><head>
-<meta charset="utf-8">
-${style}</head><body>`);
+<meta charset="utf-8">${style}</head><body>`);
 
-  <!-- ✅ JAVÍTOTT VISSZA LINK -->
   res.write(`<p><a href="/">← Vissza az éttermekhez</a></p>`);
-
   res.write(`<h1>Heti menü – ${etterem} (${fmt(monday)}. – ${fmt(friday)}.)</h1>`);
 
   if (data[todayIso]) {
@@ -201,9 +196,7 @@ ${style}</head><body>`);
     res.write(`</details>`);
   }
 
-  res.write(
-    `<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pageUrl)}">`
-  );
+  res.write(`<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pageUrl)}">`);
   res.write(`<p><strong>by István Gris</strong></p>`);
 
   res.write(`</body></html>`);
@@ -211,6 +204,5 @@ ${style}</head><body>`);
 });
 
 app.listen(port, () =>
-  console.log("Menü szerver fut – vissza link javítva")
+  console.log("Menü szerver fut – stabil, korrekt linkekkel és kiemeléssel")
 );
-
