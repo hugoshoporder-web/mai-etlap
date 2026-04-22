@@ -38,7 +38,7 @@ function renderDay(res, data) {
 
 async function loadData() {
   const csv = await (await fetch(CSV_URL)).text();
-  const rows = parse(csv, { columns: true, skip_empty_lines: true, trim: true });
+  const rows = parse(csv, { columns:true, skip_empty_lines:true, trim:true });
 
   const map = {};
   rows.forEach(r => {
@@ -54,75 +54,19 @@ async function loadData() {
 
 const style = `
 <style>
-body {
-  font-family: system-ui, sans-serif;
-  margin: 1em;
+body { font-family: system-ui, sans-serif; margin: 1em; }
+ul { list-style:none; padding-left:1.2em; margin:0.3em 0 0.8em; }
+li::before { content:"– "; }
+a { text-decoration:none; color:inherit; }
+img { max-width:100%; height:auto; }
+.section-title {
+  display:flex; align-items:center; gap:0.5em; margin:0.8em 0 0.4em;
 }
-
-ul {
-  list-style: none;
-  padding-left: 1.2em;
-  margin: 0.3em 0 0.8em;
-}
-
-li::before { content: "– "; }
-
-a {
-  text-decoration: none;
-  color: inherit;
-}
-
-img {
-  max-width: 100%;
-  height: auto;
-}
-
-/* szöveghez igazodó vonalas kiemelés */
-.section {
-  display: flex;
-  align-items: center;
-  gap: 0.5em;
-  margin: 0.8em 0 0.4em;
-}
-
-.section::before,
-.section::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: #999;
-}
-
-.section span {
-  white-space: nowrap;
-  font-weight: bold;
+.section-title::before, .section-title::after {
+  content:""; flex:1; height:1px; background:#999;
 }
 </style>
 `;
-
-app.get("/", async (req, res) => {
-  const db = await loadData();
-  const etteremek = Object.keys(db).sort((a,b)=>a.localeCompare(b,"hu"));
-  const baseUrl = `${req.protocol}://${req.get("host")}`;
-
-  res.write(`<!doctype html><html lang="hu"><head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-${style}
-</head><body>`);
-
-  res.write(`<h1>Heti menük</h1><ul>`);
-  etteremek.forEach(e => {
-    res.write(`<li>▶ <a href="/etterem/${encodeURIComponent(e)}">${e}</a></li>`);
-  });
-  res.write(`</ul>`);
-
-  res.write(`<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(baseUrl)}">`);
-  res.write(`<p><strong>by István Gris</strong></p>`);
-
-  res.write(`</body></html>`);
-  res.end();
-});
 
 app.get("/etterem/:etterem", async (req, res) => {
   const db = await loadData();
@@ -132,19 +76,15 @@ app.get("/etterem/:etterem", async (req, res) => {
 
   const today = todayHu();
   const monday = weekMonday(today);
-  const friday = new Date(monday);
-  friday.setDate(monday.getDate() + 4);
+  const friday = new Date(monday); friday.setDate(monday.getDate() + 4);
 
   const todayIso = iso(today);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(today.getDate() + 1);
+  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
   const tomorrowIso = iso(tomorrow);
-
-  const pageUrl = `${req.protocol}://${req.get("host")}/etterem/${encodeURIComponent(etterem)}`;
 
   res.write(`<!doctype html><html lang="hu"><head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 ${style}
 </head><body>`);
 
@@ -152,22 +92,54 @@ ${style}
   res.write(`<h1>Heti menü – ${etterem} (${fmt(monday)}. – ${fmt(friday)}.)</h1>`);
 
   if (data[todayIso]) {
-    res.write(`<div class="section"><span>Mai nap – ${capitalize(napNevek[today.getDay()])} ${fmt(today)}</span></div>`);
+    res.write(`<div class="section-title"><span>Mai nap – ${capitalize(napNevek[today.getDay()])} ${fmt(today)}</span></div>`);
     renderDay(res, data[todayIso]);
   }
 
   if (data[tomorrowIso]) {
-    res.write(`<div class="section"><span>Következő nap – ${capitalize(napNevek[tomorrow.getDay()])} ${fmt(tomorrow)}</span></div>`);
+    res.write(`<div class="section-title"><span>Következő nap – ${capitalize(napNevek[tomorrow.getDay()])} ${fmt(tomorrow)}</span></div>`);
     renderDay(res, data[tomorrowIso]);
   }
 
-  res.write(`<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pageUrl)}">`);
-  res.write(`<p><strong>by István Gris</strong></p>`);
+  // ✅ AKTUÁLIS HÉT TOVÁBBI NAPJAI
+  const future = [];
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    if (data[iso(d)] && d > tomorrow) future.push(d);
+  }
+  if (future.length) {
+    res.write(`<details><summary>Aktuális hét további napjai</summary>`);
+    future.forEach(d => {
+      res.write(`<h3>${capitalize(napNevek[d.getDay()])} ${fmt(d)}</h3>`);
+      renderDay(res, data[iso(d)]);
+    });
+    res.write(`</details>`);
+  }
+
+  // ✅ KÖVETKEZŐ HÉT
+  const nextWeekMonday = new Date(monday);
+  nextWeekMonday.setDate(monday.getDate() + 7);
+  const next = [];
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(nextWeekMonday);
+    d.setDate(nextWeekMonday.getDate() + i);
+    if (data[iso(d)]) next.push(d);
+  }
+  if (next.length) {
+    res.write(`<details><summary>Következő hét</summary>`);
+    next.forEach(d => {
+      res.write(`<h3>${capitalize(napNevek[d.getDay()])} ${fmt(d)}</h3>`);
+      renderDay(res, data[iso(d)]);
+    });
+    res.write(`</details>`);
+  }
 
   res.write(`</body></html>`);
   res.end();
 });
 
-app.listen(port, () => {
-  console.log("Menü szerver fut – helyes linkekkel");
-});
+app.listen(port, () =>
+  console.log("Menü szerver fut – heti szekciók visszaállítva")
+);
+``
