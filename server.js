@@ -1,4 +1,5 @@
-const express = require("express");const express = require("express("node-fetch");
+const express = require("express");
+const fetch = require("node-fetch");
 const { parse } = require("csv-parse/sync");
 
 const app = express();
@@ -6,6 +7,8 @@ const port = process.env.PORT || 3000;
 
 const CSV_URL =
   "https://docs.google.com/spreadsheets/d/1yPZUVn4PvNkGlyXdUedMkCWBa0J1f4Eutl9JwMLHBWE/export?format=csv&sheet=ADATOK";
+
+/* ===== SEGÉD ===== */
 
 const napNevek = ["vasárnap","hétfő","kedd","szerda","csütörtök","péntek","szombat"];
 const honapRovid = ["jan.","febr.","márc.","ápr.","máj.","jún.","júl.","aug.","szept.","okt.","nov.","dec."];
@@ -35,6 +38,8 @@ function renderDay(res, data) {
   }
 }
 
+/* ===== ADATBETÖLTÉS ===== */
+
 async function loadData() {
   const csv = await (await fetch(CSV_URL)).text();
   const rows = parse(csv, { columns: true, skip_empty_lines: true, trim: true });
@@ -51,47 +56,77 @@ async function loadData() {
   return map;
 }
 
+/* ===== STÍLUS – MINIMÁLIS, MOBILBARÁT ===== */
+
 const style = `
 <style>
 body {
   font-family: system-ui, sans-serif;
-  margin: 0.8em;
+  margin: 1em;
 }
+
 ul {
   list-style: none;
   padding-left: 1.2em;
-  margin: 0.2em 0 0.6em;
+  margin: 0.3em 0 0.8em;
 }
+
 li::before {
   content: "– ";
 }
-a {
-  text-decoration: none;
-  color: inherit;
-}
+
 img {
   max-width: 100%;
   height: auto;
 }
+
+/* szöveghez igazodó vonalas kiemelés */
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin: 0.8em 0 0.4em;
+}
+
+.section-title::before,
+.section-title::after {
+  content: "";
+  height: 1px;
+  background: #999;
+  flex: 1;
+}
+
+.section-title span {
+  white-space: nowrap;
+  font-weight: bold;
+}
 </style>
 `;
+
+/* ===== FŐOLDAL ===== */
 
 app.get("/", async (req, res) => {
   const db = await loadData();
   const etteremek = Object.keys(db).sort((a,b)=>a.localeCompare(b,"hu"));
   const baseUrl = `${req.protocol}://${req.get("host")}`;
 
-  res.write(`<!doctype html><html lang="hu"><head><meta charset="utf-8">${style}</head><body>`);
+  res.write(`<!doctype html><html lang="hu"><head>
+<meta charset="utf-8">${style}</head><body>`);
+
   res.write(`<h1>Heti menük</h1><ul>`);
   etteremek.forEach(e => {
     res.write(`<li><a href="/etterem/${encodeURIComponent(e)}">▶ ${e}</a></li>`);
   });
   res.write(`</ul>`);
+
   res.write(`<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(baseUrl)}">`);
   res.write(`<p><strong>by István Gris</strong></p>`);
+
   res.write(`</body></html>`);
   res.end();
 });
+
+/* ===== ÉTTEREM OLDAL ===== */
 
 app.get("/etterem/:etterem", async (req, res) => {
   const db = await loadData();
@@ -111,17 +146,19 @@ app.get("/etterem/:etterem", async (req, res) => {
 
   const pageUrl = `${req.protocol}://${req.get("host")}/etterem/${encodeURIComponent(etterem)}`;
 
-  res.write(`<!doctype html><html lang="hu"><head><meta charset="utf-8">${style}</head><body>`);
+  res.write(`<!doctype html><html lang="hu"><head>
+<meta charset="utf-8">${style}</head><body>`);
+
   res.write(`<p><a href="/">← Vissza az éttermekhez</a></p>`);
   res.write(`<h1>Heti menü – ${etterem} (${fmt(monday)}. – ${fmt(friday)}.)</h1>`);
 
   if (data[todayIso]) {
-    res.write(`<h2>Mai nap – ${capitalize(napNevek[today.getDay()])} ${fmt(today)}</h2>`);
+    res.write(`<div class="section-title"><span>Mai nap – ${capitalize(napNevek[today.getDay()])} ${fmt(today)}</span></div>`);
     renderDay(res, data[todayIso]);
   }
 
   if (data[tomorrowIso]) {
-    res.write(`<h2>Következő nap – ${capitalize(napNevek[tomorrow.getDay()])} ${fmt(tomorrow)}</h2>`);
+    res.write(`<div class="section-title"><span>Következő nap – ${capitalize(napNevek[tomorrow.getDay()])} ${fmt(tomorrow)}</span></div>`);
     renderDay(res, data[tomorrowIso]);
   }
 
@@ -161,10 +198,11 @@ app.get("/etterem/:etterem", async (req, res) => {
 
   res.write(`<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pageUrl)}">`);
   res.write(`<p><strong>by István Gris</strong></p>`);
+
   res.write(`</body></html>`);
   res.end();
 });
 
 app.listen(port, () =>
-  console.log("Menü szerver fut")
+  console.log("Menü szerver fut – stabil, korrekt linkekkel és kiemeléssel")
 );
