@@ -130,7 +130,7 @@ app.get("/etterem/:etterem", async (req, res) => {
   res.write(`<!doctype html><html lang="hu"><head>
 <meta charset="utf-8">${style}</head><body>`);
 
-  res.write(`<p>← Vissza az éttermekhez</p>`);
+  res.write(`<p><a href="/">← Vissza az éttermekhez</a></p>`);
   res.write(`<h1>Heti menü – ${etterem} (${fmt(monday)}. – ${fmt(friday)}.)</h1>`);
 
   if (data[todayIso]) {
