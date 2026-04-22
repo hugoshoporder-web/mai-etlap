@@ -10,30 +10,8 @@ const CSV_URL =
 
 /* ===== SEGÉDFÜGGVÉNYEK ===== */
 
-const napNevek = [
-  "vasárnap",
-  "hétfő",
-  "kedd",
-  "szerda",
-  "csütörtök",
-  "péntek",
-  "szombat"
-];
-
-const honapRovid = [
-  "jan.",
-  "febr.",
-  "márc.",
-  "ápr.",
-  "máj.",
-  "jún.",
-  "júl.",
-  "aug.",
-  "szept.",
-  "okt.",
-  "nov.",
-  "dec."
-];
+const napNevek = ["vasárnap","hétfő","kedd","szerda","csütörtök","péntek","szombat"];
+const honapRovid = ["jan.","febr.","márc.","ápr.","máj.","jún.","júl.","aug.","szept.","okt.","nov.","dec."];
 
 function capitalize(s) {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -65,11 +43,7 @@ function iso(d) {
 }
 
 function formatHuDate(d) {
-  return `${honapRovid[d.getMonth()]} ${d.getDate()}`;
-}
-
-function formatDayLine(prefix, d) {
-  return `${prefix} – ${capitalize(napNevek[d.getDay()])} ${formatHuDate(d)}`;
+  return `${honapRovid[d.getMonth()]} ${d.getDate()}.`;
 }
 
 function renderDay(res, data) {
@@ -80,18 +54,13 @@ function renderDay(res, data) {
   }
 }
 
-/* ===== ADATBETÖLTÉS ===== */
+/* ===== ADAT BETÖLTÉS ===== */
 
 async function loadData() {
   const csv = await (await fetch(CSV_URL)).text();
-  const rows = parse(csv, {
-    columns: true,
-    skip_empty_lines: true,
-    trim: true
-  });
+  const rows = parse(csv, { columns: true, skip_empty_lines: true, trim: true });
 
   const byRestaurant = {};
-
   rows.forEach(r => {
     if (!r.etterem || !r.datum || !r.etel) return;
 
@@ -129,7 +98,7 @@ app.get("/", async (req, res) => {
     <style>
       body { font-family: system-ui, sans-serif; }
       ul { list-style:none; padding-left:0; }
-      li { margin:0.6em 0; font-size:1.2em; }
+      li { margin:0.5em 0; font-size:1.2em; }
       a { text-decoration:none; color:#000; }
     </style>
   `);
@@ -149,7 +118,7 @@ app.get("/", async (req, res) => {
     encodeURIComponent(baseUrl);
 
   res.write(`${qrUrl}<p>${baseUrl}</p>`);
-  res.write("<p style='text-align:center;font-weight:bold;'>by István Gris</p>");
+  res.write("<p style='font-weight:bold;text-align:center;'>by István Gris</p>");
 
   res.write("</body></html>");
   res.end();
@@ -160,7 +129,6 @@ app.get("/", async (req, res) => {
 app.get("/etterem/:slug", async (req, res) => {
   const restaurants = await loadData();
   const entry = restaurants[req.params.slug];
-
   if (!entry) {
     res.status(404).send("Nincs ilyen étterem.");
     return;
@@ -196,16 +164,16 @@ app.get("/etterem/:slug", async (req, res) => {
   `);
   res.write("</head><body>");
 
-  res.write(`<p>/← Vissza az éttermekhez</a></p>`);
-  res.write(`<h1>Heti menü – ${name} (${formatHuDate(monday)}. – ${formatHuDate(friday)}.)</h1>`);
+  res.write(`<p>/</p>`);
+  res.write(`<h1>Heti menü – ${name} (${formatHuDate(monday)} – ${formatHuDate(friday)})</h1>`);
 
   if (data[todayIso]) {
-    res.write(`<h2>${formatDayLine("Mai nap", today)}</h2>`);
+    res.write(`<h2>Mai nap – (${formatHuDate(today)})</h2>`);
     renderDay(res, data[todayIso]);
   }
 
   if (data[tomorrowIso]) {
-    res.write(`<h2>${formatDayLine("Következő nap", tomorrow)}</h2>`);
+    res.write(`<h2>Következő nap – (${formatHuDate(tomorrow)})</h2>`);
     renderDay(res, data[tomorrowIso]);
   }
 
@@ -222,7 +190,7 @@ app.get("/etterem/:slug", async (req, res) => {
   if (extraDays.length) {
     res.write("<details><summary>Aktuális hét további napjai</summary>");
     extraDays.forEach(d => {
-      res.write(`<h3>${capitalize(napNevek[d.getDay()])} ${formatHuDate(d)}</h3>`);
+      res.write(`<h3>${capitalize(napNevek[d.getDay()])} – (${formatHuDate(d)})</h3>`);
       renderDay(res, data[iso(d)]);
     });
     res.write("</details>");
@@ -241,7 +209,7 @@ app.get("/etterem/:slug", async (req, res) => {
   if (nextWeekDays.length) {
     res.write("<details><summary>Következő hét</summary>");
     nextWeekDays.forEach(d => {
-      res.write(`<h3>${capitalize(napNevek[d.getDay()])} ${formatHuDate(d)}</h3>`);
+      res.write(`<h3>${capitalize(napNevek[d.getDay()])} – (${formatHuDate(d)})</h3>`);
       renderDay(res, data[iso(d)]);
     });
     res.write("</details>");
@@ -251,7 +219,7 @@ app.get("/etterem/:slug", async (req, res) => {
     "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" +
     encodeURIComponent(pageUrl);
 
-  res.write(`<hr>${qrUrl} alt="QR kód"><p>${pageUrl}</p>`);
+  res.write(`<hr>${qrUrl}<p>${pageUrl}</p>`);
   res.write("<p>~10s Server Wake-Up</p>");
   res.write("<p style='font-weight:bold;text-align:center;'>by István Gris</p>");
 
@@ -262,5 +230,5 @@ app.get("/etterem/:slug", async (req, res) => {
 /* ===== INDÍTÁS ===== */
 
 app.listen(port, () => {
-  console.log("Menü szerver fut – végleges, napnév+dátum formátummal");
+  console.log("Menü szerver fut – több éttermes verzió");
 });
