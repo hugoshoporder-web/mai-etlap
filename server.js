@@ -1,13 +1,21 @@
-const express = require("express");constutl9JwMLHBWE/export?format=csv&amp;sheet=ADATOK";
+const express = require("express");
+const fetch = require("node-fetch");
+const { parse } = require("csv-parse/sync");
+
+const app = express();
+const port = process.env.PORT || 3000;
+
+const CSV_URL =
+  "https://docs.google.com/spreadsheets/d/1yPZUVn4PvNkGlyXdUedMkCWBa0J1f4Eutl9JwMLHBWE/export?format=csv&sheet=ADATOK";
 
 /* ===== SEGÉD ===== */
 
 const napNevek = ["vasárnap","hétfő","kedd","szerda","csütörtök","péntek","szombat"];
 const honapRovid = ["jan.","febr.","márc.","ápr.","máj.","jún.","júl.","aug.","szept.","okt.","nov.","dec."];
 
-const capitalize = s =&gt; s.charAt(0).toUpperCase() + s.slice(1);
-const iso = d =&gt; d.toISOString().split("T")[0];
-const fmt = d =&gt; `${honapRovid[d.getMonth()]} ${d.getDate()}`;
+const capitalize = s => s.charAt(0).toUpperCase() + s.slice(1);
+const iso = d => d.toISOString().split("T")[0];
+const fmt = d => `${honapRovid[d.getMonth()]} ${d.getDate()}`;
 
 function todayHu() {
   return new Date(
@@ -24,9 +32,9 @@ function weekMonday(d) {
 
 function renderDay(res, data) {
   for (const tipus in data) {
-    res.write(`&lt;strong&gt;${tipus}&lt;/strong&gt;&lt;ul&gt;`);
-    data[tipus].forEach(e =&gt; res.write(`&lt;li&gt;${e}&lt;/li&gt;`));
-    res.write(`&lt;/ul&gt;`);
+    res.write(`<strong>${tipus}</strong><ul>`);
+    data[tipus].forEach(e => res.write(`<li>${e}</li>`));
+    res.write(`</ul>`);
   }
 }
 
@@ -37,7 +45,7 @@ async function loadData() {
   const rows = parse(csv, { columns: true, skip_empty_lines: true, trim: true });
 
   const map = {};
-  rows.forEach(r =&gt; {
+  rows.forEach(r => {
     if (!r.etterem || !r.datum || !r.etel) return;
     map[r.etterem] ??= {};
     map[r.etterem][r.datum] ??= {};
@@ -48,10 +56,10 @@ async function loadData() {
   return map;
 }
 
-/* ===== STÍLUS ===== */
+/* ===== STÍLUS – MINIMÁLIS, MOBILBARÁT ===== */
 
 const style = `
-&lt;style&gt;
+<style>
 body {
   font-family: system-ui, sans-serif;
   margin: 1em;
@@ -91,38 +99,38 @@ img {
   white-space: nowrap;
   font-weight: bold;
 }
-&lt;/style&gt;
+</style>
 `;
 
 /* ===== FŐOLDAL ===== */
 
-app.get("/", async (req, res) =&gt; {
+app.get("/", async (req, res) => {
   const db = await loadData();
-  const etteremek = Object.keys(db).sort((a,b)=&gt;a.localeCompare(b,"hu"));
+  const etteremek = Object.keys(db).sort((a,b)=>a.localeCompare(b,"hu"));
   const baseUrl = `${req.protocol}://${req.get("host")}`;
 
-  res.write(`&lt;!doctype html&gt;&lt;html lang="hu"&gt;&lt;head&gt;
-&lt;meta charset="utf-8"&gt;
-&lt;meta name="viewport" content="width=device-width, initial-scale=1"&gt;
+  res.write(`<!doctype html><html lang="hu"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 ${style}
-&lt;/head&gt;&lt;body&gt;`);
+</head><body>`);
 
-  res.write(`&lt;h1&gt;Heti menük&lt;/h1&gt;&lt;ul&gt;`);
-  etteremek.forEach(e =&gt; {
-    res.write(`&lt;li&gt;&lt;a href="/etterem/${encodeURIComponent(e)}"&gt;▶ ${e}&lt;/a&gt;&lt;/li&gt;`);
+  res.write(`<h1>Heti menük</h1><ul>`);
+  etteremek.forEach(e => {
+    res.write(`<li><a href="/etterem/${encodeURIComponent(e)}">▶ ${e}</a></li>`);
   });
-  res.write(`&lt;/ul&gt;`);
+  res.write(`</ul>`);
 
-  res.write(`&lt;img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&amp;data=${encodeURIComponent(baseUrl)}"&gt;`);
-  res.write(`&lt;p&gt;&lt;strong&gt;by István Gris&lt;/strong&gt;&lt;/p&gt;`);
+  res.write(`<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(baseUrl)}">`);
+  res.write(`<p><strong>by István Gris</strong></p>`);
 
-  res.write(`&lt;/body&gt;&lt;/html&gt;`);
+  res.write(`</body></html>`);
   res.end();
 });
 
 /* ===== ÉTTEREM OLDAL ===== */
 
-app.get("/etterem/:etterem", async (req, res) =&gt; {
+app.get("/etterem/:etterem", async (req, res) => {
   const db = await loadData();
   const etterem = req.params.etterem;
   const data = db[etterem];
@@ -140,76 +148,72 @@ app.get("/etterem/:etterem", async (req, res) =&gt; {
 
   const pageUrl = `${req.protocol}://${req.get("host")}/etterem/${encodeURIComponent(etterem)}`;
 
-  res.write(`&lt;!doctype html&gt;&lt;html lang="hu"&gt;&lt;head&gt;
-&lt;meta charset="utf-8"&gt;
-&lt;meta name="viewport" content="width=device-width, initial-scale=1"&gt;
+  res.write(`<!doctype html><html lang="hu"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 ${style}
-&lt;/head&gt;&lt;body&gt;`);
+</head><body>`);
 
-  res.write(`&lt;p&gt;&lt;a href="/"&gt;← Vissza az éttermekhez&lt;/a&gt;&lt;/p&gt;`);
+  /* VISSZA LINK – JAVÍTVA */
+  res.write(`<p><a href="/">← Vissza az éttermekhez</a></p>`);
 
-  /* >>> DÁTUM ELTÁVOLÍTVA <<< */
-  res.write(`&lt;h1&gt;Heti menü – ${etterem}&lt;/h1&gt;`);
+  res.write(`<h1>Heti menü – ${etterem} (${fmt(monday)}. – ${fmt(friday)}.)</h1>`);
 
   if (data[todayIso]) {
-    res.write(`&lt;div class="section-title"&gt;&lt;span&gt;Mai nap – ${capitalize(napNevek[today.getDay()])} ${fmt(today)}&lt;/span&gt;&lt;/div&gt;`);
+    res.write(`<div class="section-title"><span>Mai nap – ${capitalize(napNevek[today.getDay()])} ${fmt(today)}</span></div>`);
     renderDay(res, data[todayIso]);
   }
 
   if (data[tomorrowIso]) {
-    res.write(`&lt;div class="section-title"&gt;&lt;span&gt;Következő nap – ${capitalize(napNevek[tomorrow.getDay()])} ${fmt(tomorrow)}&lt;/span&gt;&lt;/div&gt;`);
+    res.write(`<div class="section-title"><span>Következő nap – ${capitalize(napNevek[tomorrow.getDay()])} ${fmt(tomorrow)}</span></div>`);
     renderDay(res, data[tomorrowIso]);
   }
 
+  /* AKTUÁLIS HÉT TOVÁBBI NAPJAI */
   const future = [];
-  for (let i = 0; i &lt; 5; i++) {
+  for (let i = 0; i < 5; i++) {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
-    if (data[iso(d)] &amp;&amp; d &gt; tomorrow) future.push(d);
+    if (data[iso(d)] && d > tomorrow) future.push(d);
   }
 
   if (future.length) {
-    res.write(`&lt;details&gt;&lt;summary&gt;Aktuális hét további napjai&lt;/summary&gt;`);
-    future.forEach(d =&gt; {
-      res.write(`&lt;h3&gt;${capitalize(napNevek[d.getDay()])} ${fmt(d)}&lt;/h3&gt;`);
+    res.write(`<details><summary>Aktuális hét további napjai</summary>`);
+    future.forEach(d => {
+      res.write(`<h3>${capitalize(napNevek[d.getDay()])} ${fmt(d)}</h3>`);
       renderDay(res, data[iso(d)]);
     });
-    res.write(`&lt;/details&gt;`);
+    res.write(`</details>`);
   }
 
+  /* KÖVETKEZŐ HÉT */
   const nextWeekMonday = new Date(monday);
   nextWeekMonday.setDate(monday.getDate() + 7);
   const next = [];
 
-  for (let i = 0; i &lt; 5; i++) {
+  for (let i = 0; i < 5; i++) {
     const d = new Date(nextWeekMonday);
     d.setDate(nextWeekMonday.getDate() + i);
     if (data[iso(d)]) next.push(d);
   }
 
   if (next.length) {
-    res.write(`&lt;details&gt;&lt;summary&gt;Következő hét&lt;/summary&gt;`);
-    next.forEach(d =&gt; {
-      res.write(`&lt;h3&gt;${capitalize(napNevek[d.getDay()])} ${fmt(d)}&lt;/h3&gt;`);
+    res.write(`<details><summary>Következő hét</summary>`);
+    next.forEach(d => {
+      res.write(`<h3>${capitalize(napNevek[d.getDay()])} ${fmt(d)}</h3>`);
       renderDay(res, data[iso(d)]);
     });
-    res.write(`&lt;/details&gt;`);
+    res.write(`</details>`);
   }
 
-  res.write(`&lt;img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&amp;data=${encodeURIComponent(pageUrl)}"&gt;`);
-  res.write(`&lt;p&gt;&lt;strong&gt;by István Gris&lt;/strong&gt;&lt;/p&gt;`);
+  res.write(`<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pageUrl)}">`);
+  res.write(`<p><strong>by István Gris</strong></p>`);
 
-  res.write(`&lt;/body&gt;&lt;/html&gt;`);
+  res.write(`</body></html>`);
   res.end();
 });
 
-app.listen(port, () =&gt;
-  console.log("Menü szerver fut – dátum eltávolítva a heti menüből")
+app.listen(port, () =>
+  console.log("Menü szerver fut – összerakva, stabil verzió")
 );
-const fetch = require("node-fetch");
-const { parse } = require("csv-parse/sync");
-
-const app = express();
-const port = process.env.PORT || 3000;
-
-const CSV_URL =
+``
