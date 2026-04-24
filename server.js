@@ -1,5 +1,6 @@
 // ===== server.js =====
-// QR hozzáadva
+// Alap kód, ahol a „Következő hét” működik
+// Csak QR került hozzáadásra
 // Minden más változatlan
 
 const express = require("express");
@@ -44,7 +45,7 @@ function renderDay(res, dayData) {
   }
 }
 
-/* ===== ADATBETÖLTÉS ===== */
+/* ===== ADATBETÖLTÉS – dátum normalizálva ===== */
 
 async function loadData() {
   const csv = await (await fetch(CSV_URL)).text();
@@ -59,7 +60,11 @@ async function loadData() {
   rows.forEach(r => {
     if (!r.etterem || !r.datum || !r.etel) return;
 
-    const isoDate = r.datum.trim().replace(/\.$/, "").replace(/\./g, "-");
+    // 2026.04.27. → 2026-04-27
+    const isoDate = r.datum
+      .trim()
+      .replace(/\.$/, "")
+      .replace(/\./g, "-");
 
     map[r.etterem] ??= {};
     map[r.etterem][isoDate] ??= {};
@@ -75,9 +80,23 @@ async function loadData() {
 const style = `
 <style>
 body { font-family: system-ui, sans-serif; margin: 1em; }
-ul { list-style: none; padding-left: 1.2em; }
+ul { list-style: none; padding-left: 1.2em; margin: .3em 0 .8em; }
 li::before { content: "– "; }
 img { max-width: 200px; margin-top: 1em; }
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: .5em;
+  margin: .8em 0 .4em;
+}
+.section-title::before,
+.section-title::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #999;
+}
+.section-title span { font-weight: bold; white-space: nowrap; }
 </style>
 `;
 
@@ -86,6 +105,7 @@ img { max-width: 200px; margin-top: 1em; }
 app.get("/", async (req, res) => {
   const db = await loadData();
   const etteremek = Object.keys(db).sort((a,b)=>a.localeCompare(b,"hu"));
+  const baseUrl = `${req.protocol}://${req.get("host")}`;
 
   res.write(`<!doctype html><html lang="hu"><head>
 <meta charset="utf-8">
@@ -95,12 +115,11 @@ ${style}
 
   res.write(`<h1>Heti menük</h1><ul>`);
   etteremek.forEach(e => {
-    res.write(`<li>/etterem/${encodeURIComponent(e)}${e}</li>`);
+    res.write(`<li><a href="/etterem/${encodeURIComponent(e)}">${e}</a></li>`);
   });
   res.write(`</ul>`);
 
-  // ✅ QR – FŐOLDAL
-  const baseUrl = `${req.protocol}://${req.get("host")}`;
+  {/* QR – főoldal */}
   res.write(
     `<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(baseUrl)}">`
   );
@@ -115,13 +134,21 @@ app.get("/etterem/:etterem", async (req, res) => {
   const db = await loadData();
   const etterem = req.params.etterem;
   const data = db[etterem];
-  if (!data) return res.status(404).send("Nincs ilyen étterem.");
+
+  if (!data) {
+    res.status(404).send("Nincs ilyen étterem.");
+    return;
+  }
 
   const today = todayHu();
   const monday = weekMonday(today);
+
   const todayIso = iso(today);
-  const tomorrow = new Date(today); tomorrow.setDate(today.getDate()+1);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
   const tomorrowIso = iso(tomorrow);
+
+  const pageUrl = `${req.protocol}://${req.get("host")}/etterem/${encodeURIComponent(etterem)}`;
 
   res.write(`<!doctype html><html lang="hu"><head>
 <meta charset="utf-8">
@@ -132,14 +159,57 @@ ${style}
   res.write(`<h1>Heti menü – ${etterem}</h1>`);
 
   if (data[todayIso]) {
+    res.write(
+      `<div class="section-title"><span>Mai nap – ${capitalize(napNevek[today.getDay()])} ${fmt(today)}</span></div>`
+    );
     renderDay(res, data[todayIso]);
   }
+
   if (data[tomorrowIso]) {
+    res.write(
+      `<div class="section-title"><span>Következő nap – ${capitalize(napNevek[tomorrow.getDay()])} ${fmt(tomorrow)}</span></div>`
+    );
     renderDay(res, data[tomorrowIso]);
   }
 
-  // ✅ QR – ÉTTEREM OLDAL
-  const pageUrl = `${req.protocol}://${req.get("host")}/etterem/${encodeURIComponent(etterem)}`;
+  // Aktuális hét további napjai
+  const future = [];
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    if (data[iso(d)] && d > tomorrow) future.push(d);
+  }
+
+  if (future.length) {
+    res.write(`<details><summary>Aktuális hét további napjai</summary>`);
+    future.forEach(d => {
+      res.write(`<h3>${capitalize(napNevek[d.getDay()])} ${fmt(d)}</h3>`);
+      renderDay(res, data[iso(d)]);
+    });
+    res.write(`</details>`);
+  }
+
+  // Következő hét – EZ A RÉSZ VOLT JÓ, VISSZARAKVA
+  const nextWeekMonday = new Date(monday);
+  nextWeekMonday.setDate(monday.getDate() + 7);
+  const next = [];
+
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(nextWeekMonday);
+    d.setDate(nextWeekMonday.getDate() + i);
+    if (data[iso(d)]) next.push(d);
+  }
+
+  if (next.length) {
+    res.write(`<details><summary>Következő hét</summary>`);
+    next.forEach(d => {
+      res.write(`<h3>${capitalize(napNevek[d.getDay()])} ${fmt(d)}</h3>`);
+      renderDay(res, data[iso(d)]);
+    });
+    res.write(`</details>`);
+  }
+
+  {/* QR – étterem oldal */}
   res.write(
     `<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pageUrl)}">`
   );
@@ -149,5 +219,6 @@ ${style}
 });
 
 app.listen(port, () => {
-  console.log("Menü szerver fut – QR hozzáadva");
+  console.log("Menü szerver fut – visszaállított, működő verzió");
 });
+``
