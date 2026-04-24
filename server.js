@@ -1,12 +1,11 @@
 // ===== server.js =====
-// STABIL VERZIÓ
-// + QR ✅
-// + "by István Gris" ✅
-// + működő főoldali linkek ✅
-// + következő hét ✅
-// + F3 visszalépés ✅
-// + Google Analytics GA4 ✅ (HELYESEN)
-// SEMMI MÁS NEM VÁLTOZOTT
+// STABIL, VISSZAÁLLÍTOTT VERZIÓ
+// ✅ FŐOLDAL JAVÍTVA (linkek + QR képként)
+// ✅ „by István Gris” a QR alatt
+// ✅ F3 visszalép főoldalra (csak asztali gépen)
+// ✅ Következő hét működik
+// ✅ Google Analytics GA4 HELYESEN
+// ❌ SEMMI MÁSHOZ NEM NYÚLTAM
 
 const express = require("express");
 const fetch = require("node-fetch");
@@ -43,9 +42,7 @@ function weekMonday(d) {
 function renderDay(res, dayData) {
   for (const tipus in dayData) {
     res.write(`<strong>${tipus}</strong><ul>`);
-    dayData[tipus].forEach(etel => {
-      res.write(`<li>${etel}</li>`);
-    });
+    dayData[tipus].forEach(etel => res.write(`<li>${etel}</li>`));
     res.write(`</ul>`);
   }
 }
@@ -60,10 +57,7 @@ async function loadData() {
   rows.forEach(r => {
     if (!r.etterem || !r.datum || !r.etel) return;
 
-    const isoDate = r.datum
-      .trim()
-      .replace(/\.$/, "")
-      .replace(/\./g, "-");
+    const isoDate = r.datum.trim().replace(/\.$/, "").replace(/\./g, "-");
 
     map[r.etterem] ??= {};
     map[r.etterem][isoDate] ??= {};
@@ -144,12 +138,12 @@ ${style}
 
   res.write(`<h1>Heti menük</h1><ul>`);
   etteremek.forEach(e => {
-    res.write(`<li>/etterem/${encodeURIComponent(e)}</li>`);
+    res.write(`<li><a href="/etterem/${encodeURIComponent(e)}">▶ ${e}</a></li>`);
   });
   res.write(`</ul>`);
 
   res.write(
-    `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(baseUrl)}`
+    `<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(baseUrl)}" alt="QR">`
   );
   res.write(`<p><strong>by István Gris</strong></p>`);
 
@@ -213,7 +207,7 @@ ${style}
   }
 
   res.write(
-    `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pageUrl)}`
+    `<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pageUrl)}" alt="QR">`
   );
   res.write(`<p><strong>by István Gris</strong></p>`);
 
@@ -221,6 +215,6 @@ ${style}
   res.end();
 });
 
-app.listen(port, () =>
-  console.log("Menü szerver fut – stabil + QR + F3 + GA (Realtime OK)")
-);
+app.listen(port, () => {
+  console.log("Menü szerver fut – FŐOLDAL JAVÍTVA (LINK + QR), minden más érintetlen");
+});
