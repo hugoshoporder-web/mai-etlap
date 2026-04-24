@@ -1,7 +1,8 @@
 // ===== server.js =====
-// Alap kód, ahol a „Következő hét” működik
-// Csak QR került hozzáadásra
-// Minden más változatlan
+// Visszaállított, működő verzió
+// QR benne
+// F3 visszalép főoldalra (csak asztali gépen)
+// Minden más érintetlen
 
 const express = require("express");
 const fetch = require("node-fetch");
@@ -45,7 +46,7 @@ function renderDay(res, dayData) {
   }
 }
 
-/* ===== ADATBETÖLTÉS – dátum normalizálva ===== */
+/* ===== ADATBETÖLTÉS ===== */
 
 async function loadData() {
   const csv = await (await fetch(CSV_URL)).text();
@@ -100,6 +101,24 @@ img { max-width: 200px; margin-top: 1em; }
 </style>
 `;
 
+/* ===== F3 – CSAK ASZTALI GÉPEN ===== */
+
+const f3script = `
+<script>
+(function () {
+  const isDesktop = !("ontouchstart" in window) && window.innerWidth > 768;
+  if (!isDesktop) return;
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "F3") {
+      e.preventDefault();
+      window.location.href = "/";
+    }
+  });
+})();
+</script>
+`;
+
 /* ===== FŐOLDAL ===== */
 
 app.get("/", async (req, res) => {
@@ -115,16 +134,16 @@ ${style}
 
   res.write(`<h1>Heti menük</h1><ul>`);
   etteremek.forEach(e => {
-    res.write(`<li><a href="/etterem/${encodeURIComponent(e)}">${e}</a></li>`);
+    res.write(`<li>/etterem/${encodeURIComponent(e)}</li>`);
   });
   res.write(`</ul>`);
 
-  {/* QR – főoldal */}
+  // QR – főoldal
   res.write(
     `<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(baseUrl)}">`
   );
 
-  res.write(`</body></html>`);
+  res.write(`${f3script}</body></html>`);
   res.end();
 });
 
@@ -189,7 +208,7 @@ ${style}
     res.write(`</details>`);
   }
 
-  // Következő hét – EZ A RÉSZ VOLT JÓ, VISSZARAKVA
+  // Következő hét
   const nextWeekMonday = new Date(monday);
   nextWeekMonday.setDate(monday.getDate() + 7);
   const next = [];
@@ -209,16 +228,15 @@ ${style}
     res.write(`</details>`);
   }
 
-  {/* QR – étterem oldal */}
+  // QR – étterem oldal
   res.write(
     `<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pageUrl)}">`
   );
 
-  res.write(`</body></html>`);
+  res.write(`${f3script}</body></html>`);
   res.end();
 });
 
 app.listen(port, () => {
-  console.log("Menü szerver fut – visszaállított, működő verzió");
+  console.log("Menü szerver fut – stabil verzió + F3");
 });
-``
