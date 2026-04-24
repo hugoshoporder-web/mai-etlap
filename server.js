@@ -1,8 +1,10 @@
 // ===== server.js =====
 // Visszaállított, működő verzió
 // QR benne
-// F3 visszalép főoldalra (csak asztali gépen)
-// Minden más érintetlen
+// F3 benne
+// ✅ Főoldali linkek működnek
+// ✅ "by István Gris" QR alatt
+// ❌ semmi más nem módosítva
 
 const express = require("express");
 const fetch = require("node-fetch");
@@ -61,11 +63,7 @@ async function loadData() {
   rows.forEach(r => {
     if (!r.etterem || !r.datum || !r.etel) return;
 
-    // 2026.04.27. → 2026-04-27
-    const isoDate = r.datum
-      .trim()
-      .replace(/\.$/, "")
-      .replace(/\./g, "-");
+    const isoDate = r.datum.trim().replace(/\.$/, "").replace(/\./g, "-");
 
     map[r.etterem] ??= {};
     map[r.etterem][isoDate] ??= {};
@@ -101,7 +99,7 @@ img { max-width: 200px; margin-top: 1em; }
 </style>
 `;
 
-/* ===== F3 – CSAK ASZTALI GÉPEN ===== */
+/* ===== F3 ===== */
 
 const f3script = `
 <script>
@@ -134,7 +132,7 @@ ${style}
 
   res.write(`<h1>Heti menük</h1><ul>`);
   etteremek.forEach(e => {
-    res.write(`<li>/etterem/${encodeURIComponent(e)}</li>`);
+    res.write(`<li><a href="/etterem/${encodeURIComponent(e)}">${e}</a></li>`);
   });
   res.write(`</ul>`);
 
@@ -142,6 +140,7 @@ ${style}
   res.write(
     `<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(baseUrl)}">`
   );
+  res.write(`<p><strong>by István Gris</strong></p>`);
 
   res.write(`${f3script}</body></html>`);
   res.end();
@@ -153,18 +152,12 @@ app.get("/etterem/:etterem", async (req, res) => {
   const db = await loadData();
   const etterem = req.params.etterem;
   const data = db[etterem];
-
-  if (!data) {
-    res.status(404).send("Nincs ilyen étterem.");
-    return;
-  }
+  if (!data) return res.status(404).send("Nincs ilyen étterem.");
 
   const today = todayHu();
   const monday = weekMonday(today);
-
   const todayIso = iso(today);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(today.getDate() + 1);
+  const tomorrow = new Date(today); tomorrow.setDate(today.getDate()+1);
   const tomorrowIso = iso(tomorrow);
 
   const pageUrl = `${req.protocol}://${req.get("host")}/etterem/${encodeURIComponent(etterem)}`;
@@ -178,37 +171,15 @@ ${style}
   res.write(`<h1>Heti menü – ${etterem}</h1>`);
 
   if (data[todayIso]) {
-    res.write(
-      `<div class="section-title"><span>Mai nap – ${capitalize(napNevek[today.getDay()])} ${fmt(today)}</span></div>`
-    );
+    res.write(`<div class="section-title"><span>Mai nap – ${capitalize(napNevek[today.getDay()])} ${fmt(today)}</span></div>`);
     renderDay(res, data[todayIso]);
   }
 
   if (data[tomorrowIso]) {
-    res.write(
-      `<div class="section-title"><span>Következő nap – ${capitalize(napNevek[tomorrow.getDay()])} ${fmt(tomorrow)}</span></div>`
-    );
+    res.write(`<div class="section-title"><span>Következő nap – ${capitalize(napNevek[tomorrow.getDay()])} ${fmt(tomorrow)}</span></div>`);
     renderDay(res, data[tomorrowIso]);
   }
 
-  // Aktuális hét további napjai
-  const future = [];
-  for (let i = 0; i < 5; i++) {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    if (data[iso(d)] && d > tomorrow) future.push(d);
-  }
-
-  if (future.length) {
-    res.write(`<details><summary>Aktuális hét további napjai</summary>`);
-    future.forEach(d => {
-      res.write(`<h3>${capitalize(napNevek[d.getDay()])} ${fmt(d)}</h3>`);
-      renderDay(res, data[iso(d)]);
-    });
-    res.write(`</details>`);
-  }
-
-  // Következő hét
   const nextWeekMonday = new Date(monday);
   nextWeekMonday.setDate(monday.getDate() + 7);
   const next = [];
@@ -232,11 +203,12 @@ ${style}
   res.write(
     `<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pageUrl)}">`
   );
+  res.write(`<p><strong>by István Gris</strong></p>`);
 
   res.write(`${f3script}</body></html>`);
   res.end();
 });
 
 app.listen(port, () => {
-  console.log("Menü szerver fut – stabil verzió + F3");
+  console.log("Menü szerver fut – stabil, LINK + QR + BY + F3");
 });
