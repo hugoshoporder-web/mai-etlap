@@ -1,12 +1,3 @@
-// ===== server.js =====
-// STABIL, VISSZAÁLLÍTOTT VERZIÓ
-// ✅ FŐOLDAL JAVÍTVA (linkek + QR képként)
-// ✅ „by István Gris” a QR alatt
-// ✅ F3 visszalép főoldalra (csak asztali gépen)
-// ✅ Következő hét működik
-// ✅ Google Analytics GA4 HELYESEN
-// ❌ SEMMI MÁSHOZ NEM NYÚLTAM
-
 const express = require("express");
 const fetch = require("node-fetch");
 const { parse } = require("csv-parse/sync");
@@ -39,10 +30,10 @@ function weekMonday(d) {
   return x;
 }
 
-function renderDay(res, dayData) {
-  for (const tipus in dayData) {
+function renderDay(res, data) {
+  for (const tipus in data) {
     res.write(`<strong>${tipus}</strong><ul>`);
-    dayData[tipus].forEach(etel => res.write(`<li>${etel}</li>`));
+    data[tipus].forEach(e => res.write(`<li>${e}</li>`));
     res.write(`</ul>`);
   }
 }
@@ -57,7 +48,7 @@ async function loadData() {
   rows.forEach(r => {
     if (!r.etterem || !r.datum || !r.etel) return;
 
-    const isoDate = r.datum.trim().replace(/\.$/, "").replace(/\./g, "-");
+    const isoDate = r.datum.replace(/\.$/, "").replace(/\./g, "-");
 
     map[r.etterem] ??= {};
     map[r.etterem][isoDate] ??= {};
@@ -73,27 +64,13 @@ async function loadData() {
 const style = `
 <style>
 body { font-family: system-ui, sans-serif; margin: 1em; }
-ul { list-style: none; padding-left: 1.2em; margin: .3em 0 .8em; }
+ul { list-style: none; padding-left: 1.2em; }
 li::before { content: "– "; }
 img { max-width: 200px; margin-top: 1em; }
-.section-title {
-  display: flex;
-  align-items: center;
-  gap: .5em;
-  margin: .8em 0 .4em;
-}
-.section-title::before,
-.section-title::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: #999;
-}
-.section-title span { font-weight: bold; white-space: nowrap; }
 </style>
 `;
 
-/* ===== GOOGLE ANALYTICS (GA4 – HELYES) ===== */
+/* ===== GA4 ===== */
 
 const ga = `
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-92VX8WYT6W"></script>
@@ -107,18 +84,14 @@ const ga = `
 
 /* ===== F3 ===== */
 
-const f3script = `
+const f3 = `
 <script>
-(function () {
-  const isDesktop = !("ontouchstart" in window) && window.innerWidth > 768;
-  if (!isDesktop) return;
-  document.addEventListener("keydown", function (e) {
-    if (e.key === "F3") {
-      e.preventDefault();
-      window.location.href = "/";
-    }
-  });
-})();
+document.addEventListener("keydown", e => {
+  if (e.key === "F3") {
+    e.preventDefault();
+    window.location.href = "/";
+  }
+});
 </script>
 `;
 
@@ -126,32 +99,24 @@ const f3script = `
 
 app.get("/", async (req, res) => {
   const db = await loadData();
-  const etteremek = Object.keys(db).sort((a,b)=>a.localeCompare(b,"hu"));
+  const etteremek = Object.keys(db);
   const baseUrl = `${req.protocol}://${req.get("host")}`;
 
-  res.write(`<!doctype html><html lang="hu"><head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-${ga}
-${style}
-</head><body>`);
-
+  res.write(`<!doctype html><html><head>${ga}${style}</head><body>`);
   res.write(`<h1>Heti menük</h1><ul>`);
-  etteremek.forEach(e => {
-    res.write(`<li><a href="/etterem/${encodeURIComponent(e)}">▶ ${e}</a></li>`);
-  });
-  res.write(`</ul>`);
 
-  res.write(
-    `<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(baseUrl)}" alt="QR">`
+  etteremek.forEach(e =>
+    res.write(`<li><a href="/etterem/${encodeURIComponent(e)}">${e}</a></li>`)
   );
-  res.write(`<p><strong>by István Gris</strong></p>`);
 
-  res.write(`${f3script}</body></html>`);
+  res.write(`</ul>`);
+  res.write(`<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(baseUrl)}">`);
+  res.write(`<p><strong>by István Gris</strong></p>`);
+  res.write(`${f3}</body></html>`);
   res.end();
 });
 
-/* ===== ÉTTEREM OLDAL ===== */
+/* ===== ÉTTEREM ===== */
 
 app.get("/etterem/:etterem", async (req, res) => {
   const db = await loadData();
@@ -159,62 +124,16 @@ app.get("/etterem/:etterem", async (req, res) => {
   const data = db[etterem];
   if (!data) return res.status(404).send("Nincs ilyen étterem.");
 
-  const today = todayHu();
-  const monday = weekMonday(today);
+  const url = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
 
-  const todayIso = iso(today);
-  const tomorrow = new Date(today); tomorrow.setDate(today.getDate()+1);
-  const tomorrowIso = iso(tomorrow);
-
-  const pageUrl = `${req.protocol}://${req.get("host")}/etterem/${encodeURIComponent(etterem)}`;
-
-  res.write(`<!doctype html><html lang="hu"><head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-${ga}
-${style}
-</head><body>`);
-
-  res.write(`<h1>Heti menü – ${etterem}</h1>`);
-
-  if (data[todayIso]) {
-    res.write(`<div class="section-title"><span>Mai nap – ${capitalize(napNevek[today.getDay()])} ${fmt(today)}</span></div>`);
-    renderDay(res, data[todayIso]);
-  }
-
-  if (data[tomorrowIso]) {
-    res.write(`<div class="section-title"><span>Következő nap – ${capitalize(napNevek[tomorrow.getDay()])} ${fmt(tomorrow)}</span></div>`);
-    renderDay(res, data[tomorrowIso]);
-  }
-
-  const nextWeekMonday = new Date(monday);
-  nextWeekMonday.setDate(monday.getDate() + 7);
-  const next = [];
-
-  for (let i = 0; i < 5; i++) {
-    const d = new Date(nextWeekMonday);
-    d.setDate(nextWeekMonday.getDate() + i);
-    if (data[iso(d)]) next.push(d);
-  }
-
-  if (next.length) {
-    res.write(`<details><summary>Következő hét</summary>`);
-    next.forEach(d => {
-      res.write(`<h3>${capitalize(napNevek[d.getDay()])} ${fmt(d)}</h3>`);
-      renderDay(res, data[iso(d)]);
-    });
-    res.write(`</details>`);
-  }
-
-  res.write(
-    `<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pageUrl)}" alt="QR">`
-  );
+  res.write(`<!doctype html><html><head>${ga}${style}</head><body>`);
+  res.write(`<h1>${etterem}</h1>`);
+  Object.values(data).forEach(d => renderDay(res, d));
+  res.write(`<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}">`);
   res.write(`<p><strong>by István Gris</strong></p>`);
-
-  res.write(`${f3script}</body></html>`);
+  res.write(`${f3}</body></html>`);
   res.end();
 });
 
-app.listen(port, () => {
-  console.log("Menü szerver fut – FŐOLDAL JAVÍTVA (LINK + QR), minden más érintetlen");
-});
+app.listen(port, () => console.log("Render app fut"));
+``
