@@ -100,9 +100,18 @@ app.get("/", async (req, res) => {
   const etteremek = Object.keys(db).sort((a,b)=>a.localeCompare(b,"hu"));
   const baseUrl = `${req.protocol}://${req.get("host")}`;
 
-  res.write(`<!doctype html><html lang="hu"><head>
+res.write(`<!doctype html><html lang="hu"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-92VX8WYT6W"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-92VX8WYT6W');
+</script>
+
 ${style}
 </head><body>`);
 
