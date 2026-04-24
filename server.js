@@ -1,10 +1,10 @@
 // ===== server.js =====
-// TELJES, FUTTATHATÓ VERZIÓ
-// - kezeli a táblában lévő dátumot: 2026.04.27.
-// - normalizálja ISO-ra: 2026-04-27
-// - nincs duplikált deklaráció
-// - CommonJS (require)
-// - Express + CSV + heti logika rendben
+// ✅ QR rész BENNE VAN
+// ✅ Vissza link NINCS megjelenítve
+// ✅ F3 = vissza a főoldalra (CSAK ASZTALI GÉPEN)
+// ✅ Dátum formátum: 2026.04.27. → 2026-04-27
+// ✅ Nincs HTML-entitás, nincs szintaktikai hiba
+// ✅ CommonJS, Express stabil
 
 const express = require("express");
 const fetch = require("node-fetch");
@@ -48,7 +48,7 @@ function renderDay(res, dayData) {
   }
 }
 
-/* ===== ADATBETÖLTÉS – DÁTUM NORMALIZÁLÁSSAL ===== */
+/* ===== ADATBETÖLTÉS – DÁTUM NORMALIZÁLÁS ===== */
 
 async function loadData() {
   const csv = await (await fetch(CSV_URL)).text();
@@ -63,7 +63,7 @@ async function loadData() {
   rows.forEach(r => {
     if (!r.etterem || !r.datum || !r.etel) return;
 
-    // 2026.04.27.  →  2026-04-27
+    // 2026.04.27. -> 2026-04-27
     const isoDate = r.datum
       .trim()
       .replace(/\.$/, "")
@@ -85,6 +85,7 @@ const style = `
 body { font-family: system-ui, sans-serif; margin: 1em; }
 ul { list-style: none; padding-left: 1.2em; margin: .3em 0 .8em; }
 li::before { content: "– "; }
+img { max-width: 100%; height: auto; }
 .section-title {
   display: flex;
   align-items: center;
@@ -99,7 +100,29 @@ li::before { content: "– "; }
   background: #999;
 }
 .section-title span { font-weight: bold; white-space: nowrap; }
+@media (max-width:600px){
+  .mobile-center{text-align:center}
+  .mobile-center img{margin:auto;display:block}
+}
 </style>
+`;
+
+/* ===== F3 – CSAK ASZTALI GÉPEN ===== */
+
+const f3script = `
+<script>
+(function(){
+  const isDesktop = !("ontouchstart" in window) && window.innerWidth > 768;
+  if (!isDesktop) return;
+
+  document.addEventListener("keydown", function(e){
+    if (e.key === "F3") {
+      e.preventDefault();
+      window.location.href = "/";
+    }
+  });
+})();
+</script>
 `;
 
 /* ===== FŐOLDAL ===== */
@@ -107,6 +130,7 @@ li::before { content: "– "; }
 app.get("/", async (req, res) => {
   const db = await loadData();
   const etteremek = Object.keys(db).sort((a,b)=>a.localeCompare(b,"hu"));
+  const baseUrl = `${req.protocol}://${req.get("host")}`;
 
   res.write(`<!doctype html><html lang="hu"><head>
 <meta charset="utf-8">
@@ -116,11 +140,18 @@ ${style}
 
   res.write(`<h1>Heti menük</h1><ul>`);
   etteremek.forEach(e => {
-    res.write(`<li><a href="/etterem/${encodeURIComponent(e)}">${e}</a></li>`);
+    res.write(`<li>/etterem/${encodeURIComponent(e)}${e}</li>`);
   });
   res.write(`</ul>`);
 
-  res.write(`</body></html>`);
+  res.write(`
+    <div class="mobile-center">
+      <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(baseUrl)}">
+      <p><strong>by István Gris</strong></p>
+    </div>
+  `);
+
+  res.write(`${f3script}</body></html>`);
   res.end();
 });
 
@@ -144,30 +175,27 @@ app.get("/etterem/:etterem", async (req, res) => {
   tomorrow.setDate(today.getDate() + 1);
   const tomorrowIso = iso(tomorrow);
 
+  const pageUrl = `${req.protocol}://${req.get("host")}/etterem/${encodeURIComponent(etterem)}`;
+
   res.write(`<!doctype html><html lang="hu"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 ${style}
 </head><body>`);
 
-  res.write(`<p><a href="/">← Vissza az éttermekhez</a></p>`);
-  res.write(`<h1>Heti menü – ${etterem}</h1>`);
+  // NINCS látható vissza link – F3 intézi
+  res.write(`<h1 class="mobile-center">Heti menü – ${etterem}</h1>`);
 
   if (data[todayIso]) {
-    res.write(
-      `<div class="section-title"><span>Mai nap – ${capitalize(napNevek[today.getDay()])} ${fmt(today)}</span></div>`
-    );
+    res.write(`<div class="section-title"><span>Mai nap – ${capitalize(napNevek[today.getDay()])} ${fmt(today)}</span></div>`);
     renderDay(res, data[todayIso]);
   }
 
   if (data[tomorrowIso]) {
-    res.write(
-      `<div class="section-title"><span>Következő nap – ${capitalize(napNevek[tomorrow.getDay()])} ${fmt(tomorrow)}</span></div>`
-    );
+    res.write(`<div class="section-title"><span>Következő nap – ${capitalize(napNevek[tomorrow.getDay()])} ${fmt(tomorrow)}</span></div>`);
     renderDay(res, data[tomorrowIso]);
   }
 
-  // Aktuális hét további napjai
   const future = [];
   for (let i = 0; i < 5; i++) {
     const d = new Date(monday);
@@ -184,7 +212,6 @@ ${style}
     res.write(`</details>`);
   }
 
-  // Következő hét
   const nextWeekMonday = new Date(monday);
   nextWeekMonday.setDate(monday.getDate() + 7);
   const next = [];
@@ -204,10 +231,17 @@ ${style}
     res.write(`</details>`);
   }
 
-  res.write(`</body></html>`);
+  res.write(`
+    <div class="mobile-center">
+      <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pageUrl)}">
+      <p><strong>by István Gris</strong></p>
+    </div>
+  `);
+
+  res.write(`${f3script}</body></html>`);
   res.end();
 });
 
 app.listen(port, () => {
-  console.log("Menü szerver fut – dátum formátum kezelve (2026.04.27.)");
+  console.log("Menü szerver fut – QR benne, F3 vissza, dátum kezelve");
 });
