@@ -108,7 +108,7 @@ ${style}
 
   res.write(`<h1>Heti menük</h1><ul>`);
   etteremek.forEach(e => {
-    res.write(`<li>/etterem/${encodeURIComponent(e)}▶ ${e}</a></li>`);
+    res.write(`<li><a href="/etterem/${encodeURIComponent(e)}">▶ ${e}</a></li>`);
   });
   res.write(`</ul>`);
 
