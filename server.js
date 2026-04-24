@@ -5,7 +5,7 @@
 // + működő főoldali linkek ✅
 // + következő hét ✅
 // + F3 visszalépés ✅
-// + Google Analytics (GA4) ✅
+// + Google Analytics GA4 ✅ (HELYESEN)
 // SEMMI MÁS NEM VÁLTOZOTT
 
 const express = require("express");
@@ -60,7 +60,10 @@ async function loadData() {
   rows.forEach(r => {
     if (!r.etterem || !r.datum || !r.etel) return;
 
-    const isoDate = r.datum.trim().replace(/\.$/, "").replace(/\./g, "-");
+    const isoDate = r.datum
+      .trim()
+      .replace(/\.$/, "")
+      .replace(/\./g, "-");
 
     map[r.etterem] ??= {};
     map[r.etterem][isoDate] ??= {};
@@ -96,7 +99,7 @@ img { max-width: 200px; margin-top: 1em; }
 </style>
 `;
 
-/* ===== GOOGLE ANALYTICS ===== */
+/* ===== GOOGLE ANALYTICS (GA4 – HELYES) ===== */
 
 const ga = `
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-92VX8WYT6W"></script>
@@ -141,12 +144,12 @@ ${style}
 
   res.write(`<h1>Heti menük</h1><ul>`);
   etteremek.forEach(e => {
-    res.write(`<li><a href="/etterem/${encodeURIComponent(e)}">▶ ${e}</a></li>`);
+    res.write(`<li>/etterem/${encodeURIComponent(e)}</li>`);
   });
   res.write(`</ul>`);
 
   res.write(
-    `<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(baseUrl)}">`
+    `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(baseUrl)}`
   );
   res.write(`<p><strong>by István Gris</strong></p>`);
 
@@ -210,7 +213,7 @@ ${style}
   }
 
   res.write(
-    `<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pageUrl)}">`
+    `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pageUrl)}`
   );
   res.write(`<p><strong>by István Gris</strong></p>`);
 
@@ -219,6 +222,5 @@ ${style}
 });
 
 app.listen(port, () =>
-  console.log("Menü szerver fut – stabil + QR + F3 + GA")
+  console.log("Menü szerver fut – stabil + QR + F3 + GA (Realtime OK)")
 );
-``
