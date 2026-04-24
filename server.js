@@ -1,10 +1,3 @@
-/* ===== server.js (FC) =====
-   – GA4 MŰKÖDIK (G-92VX8WYT6W)
-   – FŐOLDALON VAN LINK + QR
-   – F3 = VISSZA FŐOLDALRA (CSAK ASZTALON)
-   – DÁTUM: 2026.04.27. -> 2026-04-27
-*/
-
 const express = require("express");
 const fetch = require("node-fetch");
 const { parse } = require("csv-parse/sync");
@@ -27,6 +20,13 @@ function todayHu() {
   );
 }
 
+function weekMonday(d) {
+  const x = new Date(d);
+  const diff = x.getDay() === 0 ? -6 : 1 - x.getDay();
+  x.setDate(x.getDate() + diff);
+  return x;
+}
+
 function renderDay(res, dayData) {
   for (const tipus in dayData) {
     res.write(`<strong>${tipus}</strong><ul>`);
@@ -40,15 +40,13 @@ function renderDay(res, dayData) {
 async function loadData() {
   const csv = await (await fetch(CSV_URL)).text();
   const rows = parse(csv, { columns: true, skip_empty_lines: true, trim: true });
-  const map = {};
 
+  const map = {};
   rows.forEach(r => {
     if (!r.etterem || !r.datum || !r.etel) return;
 
-    const isoDate = r.datum
-      .trim()
-      .replace(/\.$/, "")
-      .replace(/\./g, "-"); // 2026.04.27. -> 2026-04-27
+    // 2026.04.27. → 2026-04-27
+    const isoDate = r.datum.trim().replace(/\.$/, "").replace(/\./g, "-");
 
     map[r.etterem] ??= {};
     map[r.etterem][isoDate] ??= {};
@@ -64,35 +62,50 @@ async function loadData() {
 const style = `
 <style>
 body { font-family: system-ui, sans-serif; margin: 1em; }
-ul { list-style: none; padding-left: 1.2em; }
+ul { list-style: none; padding-left: 1.2em; margin: .3em 0 .8em; }
 li::before { content: "– "; }
 img { max-width: 100%; height: auto; }
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: .5em;
+  margin: .8em 0 .4em;
+}
+.section-title::before,
+.section-title::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #999;
+}
+.section-title span { font-weight: bold; white-space: nowrap; }
 </style>
 `;
 
-/* ===== GOOGLE ANALYTICS (GA4 – HELYES) ===== */
+/* ===== GOOGLE ANALYTICS – HELYES ===== */
 
 const ga = `
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-92VX8WYT6W"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
+  function gtag(){ dataLayer.push(arguments); }
   gtag('js', new Date());
   gtag('config', 'G-92VX8WYT6W');
 </script>
 `;
 
-/* ===== F3 – CSAK ASZTAL ===== */
+/* ===== F3 – CSAK ASZTALI GÉPEN ===== */
 
 const f3 = `
 <script>
 (function(){
   const isDesktop = !("ontouchstart" in window) && window.innerWidth > 768;
   if (!isDesktop) return;
-  document.addEventListener("keydown", e => {
+
+  document.addEventListener("keydown", function(e){
     if (e.key === "F3") {
       e.preventDefault();
-      location.href = "/";
+      window.location.href = "/";
     }
   });
 })();
@@ -106,10 +119,11 @@ app.get("/", async (req, res) => {
   const etteremek = Object.keys(db).sort((a,b)=>a.localeCompare(b,"hu"));
   const baseUrl = `${req.protocol}://${req.get("host")}`;
 
-  res.write(`<!doctype html><html><head>
+  res.write(`<!doctype html><html lang="hu"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-${ga}${style}
+${ga}
+${style}
 </head><body>`);
 
   res.write(`<h1>Heti menük</h1><ul>`);
@@ -120,7 +134,6 @@ ${ga}${style}
 
   res.write(`
     <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(baseUrl)}">
-    <p><strong>by István Gris</strong></p>
   `);
 
   res.write(`${f3}</body></html>`);
@@ -136,29 +149,50 @@ app.get("/etterem/:etterem", async (req, res) => {
   if (!data) return res.status(404).send("Nincs ilyen étterem.");
 
   const today = todayHu();
+  const monday = weekMonday(today);
   const todayIso = iso(today);
 
-  const pageUrl = `${req.protocol}://${req.get("host")}/etterem/${encodeURIComponent(etterem)}`;
-
-  res.write(`<!doctype html><html><head>
+  res.write(`<!doctype html><html lang="hu"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-${ga}${style}
+${ga}
+${style}
 </head><body>`);
 
   res.write(`<h1>Heti menü – ${etterem}</h1>`);
 
   if (data[todayIso]) {
+    res.write(`<div class="section-title"><span>Mai nap</span></div>`);
     renderDay(res, data[todayIso]);
   }
 
+  /* Következő hét */
+  const nextWeekMonday = new Date(monday);
+  nextWeekMonday.setDate(monday.getDate() + 7);
+
+  const nextDays = [];
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(nextWeekMonday);
+    d.setDate(nextWeekMonday.getDate() + i);
+    if (data[iso(d)]) nextDays.push(d);
+  }
+
+  if (nextDays.length) {
+    res.write(`<div class="section-title"><span>Következő hét</span></div>`);
+    nextDays.forEach(d => {
+      renderDay(res, data[iso(d)]);
+    });
+  }
+
+  const pageUrl = `${req.protocol}://${req.get("host")}/etterem/${encodeURIComponent(etterem)}`;
   res.write(`
     <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pageUrl)}">
-    <p><strong>by István Gris</strong></p>
   `);
 
   res.write(`${f3}</body></html>`);
   res.end();
 });
 
-app.listen(port, () => console.log("Menu fut – GA OK, link OK, QR OK"));
+app.listen(port, () =>
+  console.log("Menü szerver fut – ellenőrzött FC")
+);
