@@ -118,7 +118,22 @@ ${style}
   );
   res.write(`<p><strong>by István Gris</strong></p>`);
 
-  res.write(`</body></html>`);
+  res.write(`
+<script>
+(function () {
+  const isDesktop = !("ontouchstart" in window) && window.innerWidth > 768;
+  if (!isDesktop) return;
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "F3") {
+      e.preventDefault();
+      window.location.href = "/";
+    }
+  });
+})();
+</script>
+</body></html>
+`);
   res.end();
 });
 
@@ -184,7 +199,22 @@ ${style}
   );
   res.write(`<p><strong>by István Gris</strong></p>`);
 
-  res.write(`</body></html>`);
+  res.write(`
+<script>
+(function () {
+  const isDesktop = !("ontouchstart" in window) && window.innerWidth > 768;
+  if (!isDesktop) return;
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "F3") {
+      e.preventDefault();
+      window.location.href = "/";
+    }
+  });
+})();
+</script>
+</body></html>
+`);
   res.end();
 });
 
