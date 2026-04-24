@@ -100,7 +100,7 @@ app.get("/", async (req, res) => {
   const etteremek = Object.keys(db).sort((a,b)=>a.localeCompare(b,"hu"));
   const baseUrl = `${req.protocol}://${req.get("host")}`;
 
-  res.write(`<li><a href="/etterem/${encodeURIComponent(e)}">▶ ${e}</a></li>`);
+  res.write(`<!doctype html><html lang="hu"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 ${style}
