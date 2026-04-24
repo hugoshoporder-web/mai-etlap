@@ -1,10 +1,12 @@
 // ===== server.js =====
-// Visszaállított, működő verzió
-// QR benne
-// F3 benne
-// ✅ Főoldali linkek működnek
-// ✅ "by István Gris" QR alatt
-// ❌ semmi más nem módosítva
+// STABIL VERZIÓ
+// + QR ✅
+// + "by István Gris" ✅
+// + működő főoldali linkek ✅
+// + következő hét ✅
+// + F3 visszalépés ✅
+// + Google Analytics (GA4) ✅
+// SEMMI MÁS NEM VÁLTOZOTT
 
 const express = require("express");
 const fetch = require("node-fetch");
@@ -52,14 +54,9 @@ function renderDay(res, dayData) {
 
 async function loadData() {
   const csv = await (await fetch(CSV_URL)).text();
-  const rows = parse(csv, {
-    columns: true,
-    skip_empty_lines: true,
-    trim: true
-  });
+  const rows = parse(csv, { columns:true, skip_empty_lines:true, trim:true });
 
   const map = {};
-
   rows.forEach(r => {
     if (!r.etterem || !r.datum || !r.etel) return;
 
@@ -99,6 +96,18 @@ img { max-width: 200px; margin-top: 1em; }
 </style>
 `;
 
+/* ===== GOOGLE ANALYTICS ===== */
+
+const ga = `
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-92VX8WYT6W"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-92VX8WYT6W');
+</script>
+`;
+
 /* ===== F3 ===== */
 
 const f3script = `
@@ -106,7 +115,6 @@ const f3script = `
 (function () {
   const isDesktop = !("ontouchstart" in window) && window.innerWidth > 768;
   if (!isDesktop) return;
-
   document.addEventListener("keydown", function (e) {
     if (e.key === "F3") {
       e.preventDefault();
@@ -127,16 +135,16 @@ app.get("/", async (req, res) => {
   res.write(`<!doctype html><html lang="hu"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+${ga}
 ${style}
 </head><body>`);
 
   res.write(`<h1>Heti menük</h1><ul>`);
   etteremek.forEach(e => {
-    res.write(`<li><a href="/etterem/${encodeURIComponent(e)}">${e}</a></li>`);
+    res.write(`<li><a href="/etterem/${encodeURIComponent(e)}">▶ ${e}</a></li>`);
   });
   res.write(`</ul>`);
 
-  // QR – főoldal
   res.write(
     `<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(baseUrl)}">`
   );
@@ -156,6 +164,7 @@ app.get("/etterem/:etterem", async (req, res) => {
 
   const today = todayHu();
   const monday = weekMonday(today);
+
   const todayIso = iso(today);
   const tomorrow = new Date(today); tomorrow.setDate(today.getDate()+1);
   const tomorrowIso = iso(tomorrow);
@@ -165,6 +174,7 @@ app.get("/etterem/:etterem", async (req, res) => {
   res.write(`<!doctype html><html lang="hu"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+${ga}
 ${style}
 </head><body>`);
 
@@ -199,7 +209,6 @@ ${style}
     res.write(`</details>`);
   }
 
-  // QR – étterem oldal
   res.write(
     `<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pageUrl)}">`
   );
@@ -209,6 +218,7 @@ ${style}
   res.end();
 });
 
-app.listen(port, () => {
-  console.log("Menü szerver fut – stabil, LINK + QR + BY + F3");
-});
+app.listen(port, () =>
+  console.log("Menü szerver fut – stabil + QR + F3 + GA")
+);
+``
