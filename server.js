@@ -196,6 +196,23 @@ ${style}
     renderDay(res, data[tomorrowIso]);
   }
 
+// Aktuális hét további napjai
+const future = [];
+for (let i = 0; i < 5; i++) {
+  const d = new Date(monday);
+  d.setDate(monday.getDate() + i);
+  if (data[iso(d)] && d > tomorrow) future.push(d);
+}
+
+if (future.length) {
+  res.write(`&lt;details&gt;&lt;summary&gt;Aktuális hét további napjai&lt;/summary&gt;`);
+  future.forEach(d => {
+    res.write(`&lt;h3&gt;${capitalize(napNevek[d.getDay()])} ${fmt(d)}&lt;/h3&gt;`);
+    renderDay(res, data[iso(d)]);
+  });
+  res.write(`&lt;/details&gt;`);
+}
+  
   // Következő hét – változatlan
   const nextWeekMonday = new Date(monday);
   nextWeekMonday.setDate(monday.getDate() + 7);
