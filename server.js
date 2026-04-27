@@ -205,12 +205,12 @@ for (let i = 0; i < 5; i++) {
 }
 
 if (future.length) {
-  res.write(`&lt;details&gt;&lt;summary&gt;Aktuális hét további napjai&lt;/summary&gt;`);
+  res.write(`<details><summary>Aktuális hét további napjai</summary>`);
   future.forEach(d => {
-    res.write(`&lt;h3&gt;${capitalize(napNevek[d.getDay()])} ${fmt(d)}&lt;/h3&gt;`);
-    renderDay(res, data[iso(d)]);
+  res.write(`<h3>${capitalize(napNevek[d.getDay()])} ${fmt(d)}</h3>`)
+  renderDay(res, data[iso(d)]);
   });
-  res.write(`&lt;/details&gt;`);
+  res.write(`</details>`);
 }
   
   // Következő hét – változatlan
