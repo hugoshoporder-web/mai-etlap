@@ -198,7 +198,7 @@ ${style}
 
 // Aktuális hét további napjai
 const future = [];
-for (let i = 0; i < 5; i++) {
+for (let i = 0; i < 7; i++) {
   const d = new Date(monday);
   d.setDate(monday.getDate() + i);
   if (data[iso(d)] && d > tomorrow) future.push(d);
@@ -218,7 +218,7 @@ if (future.length) {
   nextWeekMonday.setDate(monday.getDate() + 7);
   const next = [];
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 7; i++) {
     const d = new Date(nextWeekMonday);
     d.setDate(nextWeekMonday.getDate() + i);
     if (data[iso(d)]) next.push(d);
