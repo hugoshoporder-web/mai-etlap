@@ -186,10 +186,13 @@ ${style}
 
   res.write(`<h1>Heti menü – ${etterem}</h1>`);
 
-res.write(`<p>
-Oszd meg másokkal is! Használd a QR‑kódot az oldal alján!
-<a href="#qr">↓</a>
-</p>`);
+res.write(`
+<p>
+<strong>Oszd meg másokkal is!</strong><br>
+<strong>Használd a QR‑kódot az oldal alján!
+<a href="#qr">↓</a></strong>
+</p>
+`);
   
   if (data[todayIso]) {
     res.write(`<div class="section-title"><span>Mai nap – ${capitalize(napNevek[today.getDay()])} ${fmt(today)}</span></div>`);
