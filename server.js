@@ -187,7 +187,7 @@ ${style}
   res.write(`<h1>Heti menü – ${etterem}</h1>`);
 
 res.write(`
-<p>
+<p style="text-align:center;">
 <strong>Oszd meg másokkal is!</strong><br>
 <strong>Használd a QR‑kódot az oldal alján!
 <a href="#qr">↓</a></strong>
