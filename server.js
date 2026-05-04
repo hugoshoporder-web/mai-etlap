@@ -184,7 +184,7 @@ ${style}
 ${style}
 </head><body>`);
 
-  res.write(`<h1>Heti menü – ${etterem}</h1>`);
+  res.write(`<h1 style="text-align:center;">Heti menü – ${etterem}</h1>`);
 
 res.write(`
 <p style="text-align:center;">
