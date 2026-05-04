@@ -186,6 +186,11 @@ ${style}
 
   res.write(`<h1>Heti menü – ${etterem}</h1>`);
 
+res.write(`<p>
+Oszd meg másokkal is! Használd a QR‑kódot az oldal alján!
+<a href="#qr">↓</a>
+</p>`);
+  
   if (data[todayIso]) {
     res.write(`<div class="section-title"><span>Mai nap – ${capitalize(napNevek[today.getDay()])} ${fmt(today)}</span></div>`);
     renderDay(res, data[todayIso]);
@@ -235,7 +240,7 @@ if (future.length) {
 
   // ✅ QR + by (étterem oldal)
   res.write(
-    `<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pageUrl)}" alt="QR">`
+    `<img id="qr" src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pageUrl)}" alt="QR">`
   );
   res.write(`<p><strong>by István Gris</strong></p>`);
 
