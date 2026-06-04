@@ -229,7 +229,7 @@ if (future.length) {
   for (let i = 0; i < 7; i++) {
     const d = new Date(nextWeekMonday);
     d.setDate(nextWeekMonday.getDate() + i);
-    if (data[iso(d)]) next.push(d);
+    if (data[iso(d)] && iso(d) !== tomorrowIso) next.push(d);
   }
 
   if (next.length) {
