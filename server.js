@@ -115,9 +115,6 @@ res.write(`<!doctype html><html lang="hu"><head>
 ${style}
 </head><body>
 
-${style}
-</head><body>`);
-
   res.write(`<h1>Heti menük</h1><ul>`);
   etteremek.forEach(e => {
     res.write(`<li><a href="/etterem/${encodeURIComponent(e)}">▶ ${e}</a></li>`);
