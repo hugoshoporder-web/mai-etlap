@@ -113,7 +113,7 @@ res.write(`<!doctype html><html lang="hu"><head>
 </script>
 
 ${style}
-</head><body>;
+</head><body>`);
 
   res.write(`<h1>Heti menük</h1><ul>`);
   etteremek.forEach(e => {
