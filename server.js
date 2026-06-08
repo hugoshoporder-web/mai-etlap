@@ -194,15 +194,19 @@ res.write(`
 </p>
 `);
   
-  if (data[todayIso]) {
-    res.write(`<div class="section-title"><span>Mai nap – ${capitalize(napNevek[today.getDay()])} ${fmt(today)}</span></div>`);
-    renderDay(res, data[todayIso]);
-  }
+res.write(`<div class="section-title"><span>Aktuális hét</span></div>`);
 
-  if (data[tomorrowIso]) {
-    res.write(`<div class="section-title"><span>Következő nap – ${capitalize(napNevek[tomorrow.getDay()])} ${fmt(tomorrow)}</span></div>`);
-    renderDay(res, data[tomorrowIso]);
-  }
+for (let i = 0; i < 7; i++) {
+  const d = new Date(monday);
+  d.setDate(monday.getDate() + i);
+
+  const dIso = iso(d);
+  if (!data[dIso]) continue;
+
+  res.write(`<h3>${capitalize(napNevek[d.getDay()])} ${fmt(d)}</h3>`);
+  renderDay(res, data[dIso]);
+}
+
 
 // Aktuális hét további napjai
 const future = [];
