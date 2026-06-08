@@ -113,7 +113,7 @@ res.write(`<!doctype html><html lang="hu"><head>
 </script>
 
 ${style}
-</head><body>
+</head><body>;
 
   res.write(`<h1>Heti menük</h1><ul>`);
   etteremek.forEach(e => {
@@ -176,8 +176,7 @@ app.get("/etterem/:etterem", async (req, res) => {
   gtag('config', 'G-92VX8WYT6W');
 </script>
 
-${style}
-</head><body>
+
 ${style}
 </head><body>`);
 
