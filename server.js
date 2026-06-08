@@ -203,23 +203,6 @@ for (let i = 0; i < 7; i++) {
   renderDay(res, data[dIso]);
 }
 
-
-// Aktuális hét további napjai
-const future = [];
-for (let i = 0; i < 7; i++) {
-  const d = new Date(monday);
-  d.setDate(monday.getDate() + i);
-  if (data[iso(d)] && d > tomorrow) future.push(d);
-}
-
-if (future.length) {
-  res.write(`<details><summary>Aktuális hét további napjai</summary>`);
-  future.forEach(d => {
-  res.write(`<h3>${capitalize(napNevek[d.getDay()])} ${fmt(d)}</h3>`)
-  renderDay(res, data[iso(d)]);
-  });
-  res.write(`</details>`);
-}
   
   // Következő hét – változatlan
   const nextWeekMonday = new Date(monday);
