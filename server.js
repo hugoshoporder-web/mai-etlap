@@ -213,12 +213,13 @@ for (let i = 0; i < 7; i++) {
 }
 
 if (future.length) {
-  res.write(`<div class="section-title"><span>Aktuális hét további napjai</span></div>`);
+  res.write(`<details><summary>Aktuális hét további napjai</summary>`);
   future.forEach(d => {
   res.write(`<h3>${capitalize(napNevek[d.getDay()])} ${fmt(d)}</h3>`)
   renderDay(res, data[iso(d)]);
   });
-  }
+  res.write(`</details>`);
+}
   
   // Következő hét – változatlan
   const nextWeekMonday = new Date(monday);
@@ -228,7 +229,7 @@ if (future.length) {
   for (let i = 0; i < 7; i++) {
     const d = new Date(nextWeekMonday);
     d.setDate(nextWeekMonday.getDate() + i);
-    if (data[iso(d)] && iso(d) !== tomorrowIso) next.push(d);
+    if (data[iso(d)]) next.push(d);
   }
 
   if (next.length) {
