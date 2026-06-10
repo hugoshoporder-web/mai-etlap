@@ -197,6 +197,7 @@ for (let i = 0; i < 7; i++) {
   d.setDate(monday.getDate() + i);
 
   const dIso = iso(d);
+  if (d < new Date(todayIso)) continue;
   if (!data[dIso]) continue;
 
   res.write(`<h3>${capitalize(napNevek[d.getDay()])} ${fmt(d)}</h3>`);
